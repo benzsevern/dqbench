@@ -96,6 +96,66 @@ def report_rich(scorecard: Scorecard) -> None:
     console.print()
 
 
+def report_comparison(scorecards: list[Scorecard]) -> None:
+    """Print a head-to-head comparison table for multiple scorecards."""
+    console = Console()
+
+    # Determine which tiers are present
+    all_tiers: list[int] = []
+    for sc in scorecards:
+        for t in sc.tiers:
+            if t.tier not in all_tiers:
+                all_tiers.append(t.tier)
+    all_tiers = sorted(all_tiers)
+
+    console.print()
+    console.rule("[bold cyan]DQBench v1.0 — Head-to-Head Comparison[/bold cyan]")
+    console.print()
+
+    # Build table
+    table = Table(
+        title="Issue-Level F1 by Tier  (DQBench Score = weighted average)",
+        box=box.HEAVY_HEAD,
+        show_header=True,
+        header_style="bold white on dark_blue",
+        border_style="cyan",
+        show_lines=True,
+    )
+
+    table.add_column("Tool", style="bold", min_width=28, no_wrap=True)
+    for tier in all_tiers:
+        table.add_column(f"T{tier} F1", justify="right", min_width=8)
+    table.add_column("Score", justify="right", style="bold green", min_width=7)
+    table.add_column("Findings", justify="right", min_width=9)
+
+    for sc in scorecards:
+        tier_map = {t.tier: t for t in sc.tiers}
+        row = [sc.tool_name]
+        total_findings = 0
+        for tier in all_tiers:
+            t = tier_map.get(tier)
+            if t:
+                row.append(f"{t.issue_f1:.1%}")
+                total_findings += t.findings_count
+            else:
+                row.append("—")
+        row.append(f"{sc.dqbench_score:.2f}")
+        row.append(str(total_findings))
+        table.add_row(*row)
+
+    console.print(table)
+    console.print()
+
+    # Highlight winner
+    if scorecards:
+        best = max(scorecards, key=lambda s: s.dqbench_score)
+        console.print(
+            f"[bold]Winner:[/bold] [bold green]{best.tool_name}[/bold green]  "
+            f"[dim]DQBench Score = {best.dqbench_score:.2f}[/dim]"
+        )
+    console.print()
+
+
 def report_json(scorecard: Scorecard, output: IO[str]) -> None:
     """Serialize the scorecard to JSON and write to output stream."""
     data = {
