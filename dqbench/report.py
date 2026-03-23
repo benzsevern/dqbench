@@ -20,18 +20,24 @@ def report_rich(scorecard: Scorecard) -> None:
     console.print(f"[bold]Tool:[/bold] {scorecard.tool_name}  [bold]Version:[/bold] {scorecard.tool_version}")
     console.print()
 
-    table = Table(box=box.ROUNDED, show_header=True, header_style="bold magenta")
-    table.add_column("Tier", style="bold", justify="center")
-    table.add_column("Recall", justify="right")
-    table.add_column("Precision", justify="right")
-    table.add_column("F1", justify="right")
-    table.add_column("FPR", justify="right")
-    table.add_column("Time (s)", justify="right")
-    table.add_column("Memory (MB)", justify="right")
-    table.add_column("Findings", justify="right")
+    # Column-level table
+    col_table = Table(
+        title="Column-Level Detection",
+        box=box.ROUNDED,
+        show_header=True,
+        header_style="bold magenta",
+    )
+    col_table.add_column("Tier", style="bold", justify="center")
+    col_table.add_column("Recall", justify="right")
+    col_table.add_column("Precision", justify="right")
+    col_table.add_column("F1", justify="right")
+    col_table.add_column("FPR", justify="right")
+    col_table.add_column("Time (s)", justify="right")
+    col_table.add_column("Memory (MB)", justify="right")
+    col_table.add_column("Findings", justify="right")
 
     for t in scorecard.tiers:
-        table.add_row(
+        col_table.add_row(
             str(t.tier),
             f"{t.recall:.1%}",
             f"{t.precision:.1%}",
@@ -42,18 +48,44 @@ def report_rich(scorecard: Scorecard) -> None:
             str(t.findings_count),
         )
 
-    console.print(table)
+    console.print(col_table)
     console.print()
 
-    # DQBench Score breakdown
+    # Issue-level table
+    issue_table = Table(
+        title="Issue-Level Detection (Targeted)",
+        box=box.ROUNDED,
+        show_header=True,
+        header_style="bold yellow",
+    )
+    issue_table.add_column("Tier", style="bold", justify="center")
+    issue_table.add_column("Issue Recall", justify="right")
+    issue_table.add_column("Issue Precision", justify="right")
+    issue_table.add_column("Issue F1", justify="right")
+
+    for t in scorecard.tiers:
+        issue_table.add_row(
+            str(t.tier),
+            f"{t.issue_recall:.1%}",
+            f"{t.issue_precision:.1%}",
+            f"{t.issue_f1:.1%}",
+        )
+
+    console.print(issue_table)
+    console.print()
+
+    # DQBench Score breakdown (now based on issue_f1)
     weights = {1: 0.20, 2: 0.40, 3: 0.40}
     parts = []
     for t in scorecard.tiers:
         w = weights.get(t.tier, 0)
-        parts.append(f"T{t.tier}: {t.f1:.1%} × {int(w * 100)}%")
+        parts.append(f"T{t.tier}: {t.issue_f1:.1%} x {int(w * 100)}%")
 
     score_breakdown = "  +  ".join(parts)
-    console.print(f"[bold]DQBench Score:[/bold] [bold green]{scorecard.dqbench_score:.2f}[/bold green]  ({score_breakdown})")
+    console.print(
+        f"[bold]DQBench Score:[/bold] [bold green]{scorecard.dqbench_score:.2f}[/bold green]"
+        f"  ({score_breakdown})  [dim](issue-level F1)[/dim]"
+    )
 
     if scorecard.llm_cost is not None:
         console.print(f"[bold]LLM Cost:[/bold] ${scorecard.llm_cost:.4f}")

@@ -15,10 +15,16 @@ class DQBenchFinding:
 @dataclass
 class TierResult:
     tier: int
+    # Column-level (existing)
     recall: float
     precision: float
     f1: float
     false_positive_rate: float
+    # Issue-level (NEW)
+    issue_recall: float      # planted issues specifically detected
+    issue_precision: float   # findings that match a planted issue
+    issue_f1: float
+    # Meta
     time_seconds: float
     memory_mb: float
     findings_count: int
@@ -34,8 +40,9 @@ class Scorecard:
 
     @property
     def dqbench_score(self) -> float:
+        """Composite score using issue-level F1 (measures targeted detection)."""
         weights = {1: 0.20, 2: 0.40, 3: 0.40}
         total = 0.0
         for t in self.tiers:
-            total += t.f1 * weights.get(t.tier, 0) * 100
+            total += t.issue_f1 * weights.get(t.tier, 0) * 100
         return round(total, 2)

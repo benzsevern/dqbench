@@ -907,13 +907,13 @@ def generate_tier3() -> tuple[pl.DataFrame, GroundTruth]:
 
     planted: dict[str, PlantedColumn] = {
         "npi_number": PlantedColumn(
-            issues=["checksum_failure"],
+            issues=["luhn"],
             planted_count=50,
             description="50 NPI numbers are valid-looking 10-digit strings that fail the Luhn check.",
             affected_rows=sorted(bad_npi_rows),
         ),
         "patient_state": PlantedColumn(
-            issues=["logic_violation"],
+            issues=["cross_column"],
             planted_count=30,
             description="30 rows have a valid state abbreviation that is inconsistent with the patient_zip prefix.",
             affected_rows=sorted(wrong_state_rows),
@@ -925,19 +925,19 @@ def generate_tier3() -> tuple[pl.DataFrame, GroundTruth]:
             affected_rows=sorted(service_before_dob_rows),
         ),
         "claim_notes": PlantedColumn(
-            issues=["encoding_issue"],
+            issues=["encoding"],
             planted_count=15,
             description="15 rows contain Latin-1 characters (é, ñ, ü) that cause UTF-8 encoding issues.",
             affected_rows=sorted(latin1_note_rows),
         ),
         "provider_name": PlantedColumn(
-            issues=["invisible_chars"],
+            issues=["encoding"],
             planted_count=10,
             description="10 rows contain zero-width Unicode characters embedded in provider names.",
             affected_rows=sorted(zwsp_provider_rows),
         ),
         "diagnosis_desc": PlantedColumn(
-            issues=["inconsistent_encoding"],
+            issues=["encoding"],
             planted_count=25,
             description="25 rows use smart/curly quotes instead of straight ASCII quotes.",
             affected_rows=sorted(smart_quote_rows),
@@ -949,7 +949,7 @@ def generate_tier3() -> tuple[pl.DataFrame, GroundTruth]:
             affected_rows=sorted(exceed_policy_rows),
         ),
         "service_day": PlantedColumn(
-            issues=["logic_violation"],
+            issues=["semantic"],
             planted_count=20,
             description="20 rows have weekend service dates for providers that only operate on weekdays.",
             affected_rows=sorted(weekend_service_rows),
@@ -1039,7 +1039,7 @@ def generate_tier3() -> tuple[pl.DataFrame, GroundTruth]:
             affected_rows=sorted(numeric_patient_rows),
         ),
         "referring_npi": PlantedColumn(
-            issues=["checksum_failure"],
+            issues=["luhn"],
             planted_count=25,
             description="25 referring NPI numbers fail the Luhn check.",
             affected_rows=sorted(bad_ref_npi_rows),

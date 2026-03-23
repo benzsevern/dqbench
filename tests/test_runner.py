@@ -59,8 +59,11 @@ def test_scorecard_has_timing():
 
 def test_report_json_structure():
     from dqbench.report import report_json
-    t1 = TierResult(tier=1, recall=0.0, precision=0.0, f1=0.0, false_positive_rate=0.0,
-                    time_seconds=0.1, memory_mb=5.0, findings_count=0)
+    t1 = TierResult(
+        tier=1, recall=0.0, precision=0.0, f1=0.0, false_positive_rate=0.0,
+        issue_recall=0.0, issue_precision=0.0, issue_f1=0.0,
+        time_seconds=0.1, memory_mb=5.0, findings_count=0,
+    )
     sc = Scorecard(tool_name="NullTool", tool_version="0.0", tiers=[t1])
     buf = io.StringIO()
     report_json(sc, buf)
@@ -73,8 +76,11 @@ def test_report_json_structure():
 
 def test_report_rich_runs_without_error():
     from dqbench.report import report_rich
-    t1 = TierResult(tier=1, recall=0.5, precision=0.5, f1=0.5, false_positive_rate=0.1,
-                    time_seconds=0.5, memory_mb=10.0, findings_count=20)
+    t1 = TierResult(
+        tier=1, recall=0.5, precision=0.5, f1=0.5, false_positive_rate=0.1,
+        issue_recall=0.4, issue_precision=0.4, issue_f1=0.4,
+        time_seconds=0.5, memory_mb=10.0, findings_count=20,
+    )
     sc = Scorecard(tool_name="TestTool", tool_version="1.0", tiers=[t1])
     # Should run without raising
     report_rich(sc)
