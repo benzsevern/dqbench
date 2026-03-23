@@ -4,7 +4,7 @@ The standard benchmark for data quality and validation tools.
 
 [![PyPI](https://img.shields.io/pypi/v/dqbench?color=d4a017)](https://pypi.org/project/dqbench/)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
-![Tests](https://img.shields.io/badge/tests-70%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-112%20passing-brightgreen)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 > The ImageNet of data quality — standardized benchmarks for validation tools.
@@ -34,6 +34,26 @@ dqbench run goldencheck
 
 # Run with a custom adapter
 dqbench run --adapter my_adapter.py
+```
+
+## Head-to-Head Results (DQBench v1.0)
+
+| Tool | Mode | T1 F1 | T2 F1 | T3 F1 | Score |
+|------|------|-------|-------|-------|-------|
+| **GoldenCheck** | **zero-config** | **84.9%** | **80.0%** | **57.6%** | **72.00** |
+| Pandera | best-effort | 36.4% | 38.1% | 25.0% | 32.51 |
+| Soda Core | best-effort | 38.1% | 23.5% | 13.3% | 22.36 |
+| Great Expectations | best-effort | 36.4% | 23.5% | 12.5% | 21.68 |
+| Great Expectations | auto-profiled | 22.2% | 42.1% | 0.0% | 21.29 |
+| Soda Core | auto-profiled | 0.0% | 11.1% | 6.2% | 6.94 |
+| All tools | zero-config | 0.0% | 0.0% | 0.0% | 0.00 |
+
+> GoldenCheck's zero-config discovery outperforms every competitor's hand-written rules.
+
+Run the comparison yourself:
+```bash
+pip install dqbench goldencheck great_expectations pandera soda-core
+dqbench run all
 ```
 
 ## Tiers
@@ -106,9 +126,12 @@ dqbench run --adapter my_adapter.py
 
 ## Built-in Adapters
 
-| Adapter | Tool | Install |
-|---------|------|---------|
-| `goldencheck` | [GoldenCheck](https://github.com/benzsevern/goldencheck) | `pip install goldencheck` |
+| Adapter | Tool | Modes | Install |
+|---------|------|-------|---------|
+| `goldencheck` | GoldenCheck | zero-config | `pip install goldencheck` |
+| `gx-zero`, `gx-auto`, `gx-best` | Great Expectations | zero / auto / best-effort | `pip install great_expectations` |
+| `pandera-zero`, `pandera-auto`, `pandera-best` | Pandera | zero / auto / best-effort | `pip install pandera` |
+| `soda-zero`, `soda-auto`, `soda-best` | Soda Core | zero / auto / best-effort | `pip install soda-core` |
 
 Want to add your tool? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
