@@ -20,14 +20,14 @@ class TierResult:
     precision: float
     f1: float
     false_positive_rate: float
-    # Issue-level (NEW)
-    issue_recall: float      # planted issues specifically detected
-    issue_precision: float   # findings that match a planted issue
-    issue_f1: float
     # Meta
     time_seconds: float
     memory_mb: float
     findings_count: int
+    # Issue-level
+    issue_recall: float = 0.0
+    issue_precision: float = 0.0
+    issue_f1: float = 0.0
 
 
 @dataclass
