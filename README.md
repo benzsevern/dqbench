@@ -4,7 +4,7 @@ The standard benchmark for data quality and validation tools.
 
 [![PyPI](https://img.shields.io/pypi/v/dqbench?color=d4a017)](https://pypi.org/project/dqbench/)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
-![Tests](https://img.shields.io/badge/tests-112%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-83%20passing-brightgreen)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 > The ImageNet of data quality — standardized benchmarks for validation tools.
