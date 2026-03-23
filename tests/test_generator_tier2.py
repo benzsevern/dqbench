@@ -1,8 +1,6 @@
 """Tests for the Tier 2 dataset generator."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_tier2_generation():
     from dqbench.generator.tier2 import generate_tier2
@@ -149,7 +147,6 @@ def test_tier2_product_category_drift():
 def test_tier2_ship_before_order_count():
     """30 rows must have ship_date < order_date."""
     from dqbench.generator.tier2 import generate_tier2
-    import polars as pl
     df, gt = generate_tier2()
     bad = (df["ship_date"] < df["order_date"]).sum()
     assert bad == 30

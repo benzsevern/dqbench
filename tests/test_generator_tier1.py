@@ -1,8 +1,6 @@
 """Tests for the Tier 1 dataset generator."""
 from __future__ import annotations
 
-import pytest
-
 
 def test_tier1_generation():
     from dqbench.generator.tier1 import generate_tier1

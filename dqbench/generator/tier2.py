@@ -448,9 +448,6 @@ def generate_tier2() -> tuple[pl.DataFrame, GroundTruth]:
                       tzinfo=timezone.utc) + timedelta(days=extra_days)
         updated_ats.append(dt.isoformat())
 
-    # is_active — valid boolean strings
-    is_active_col: list[str] = [rng.choice(["true", "false"]) for _ in range(NROWS)]
-
     # ------------------------------------------------------------------ #
     # Build Polars DataFrame (30 columns total)                          #
     # ------------------------------------------------------------------ #

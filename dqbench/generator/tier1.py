@@ -121,7 +121,6 @@ def generate_tier1() -> tuple[pl.DataFrame, GroundTruth]:
         ln = last_names[i]
         domain = rng.choice(DOMAINS)
         emails.append(f"{fn.lower()}.{ln.lower()}@{domain}")
-    bad_email_set = set(bad_email_rows)
     for i, r in enumerate(bad_email_rows):
         emails[r] = bad_email_values[i]
 

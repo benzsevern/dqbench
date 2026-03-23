@@ -8,7 +8,7 @@ from datetime import date, timedelta
 import polars as pl
 
 from dqbench.ground_truth import GroundTruth, PlantedColumn
-from dqbench.generator.utils import FIRST_NAMES, LAST_NAMES, CITIES
+from dqbench.generator.utils import FIRST_NAMES, LAST_NAMES
 
 NROWS = 100_000
 
@@ -31,7 +31,6 @@ def _make_valid_npi(rng: random.Random) -> str:
     while True:
         core = [rng.randint(0, 9) for _ in range(9)]
         # Compute check digit via Luhn
-        partial = "".join(str(d) for d in core) + "0"
         # Sum without check digit
         all_digits = core + [0]
         odd_digits = all_digits[-1::-2]
