@@ -21,6 +21,11 @@ class GoldenFlowAdapter(TransformAdapter):
             return "not installed"
 
     def transform(self, csv_path: Path) -> pl.DataFrame:
-        from goldenflow import transform_file
-        result = transform_file(csv_path)
+        from goldenflow.config.schema import GoldenFlowConfig
+        from goldenflow.engine.transformer import TransformEngine
+
+        # Read all columns as strings to handle mixed-type columns (e.g., age with "forty")
+        df = pl.read_csv(csv_path, infer_schema_length=0)
+        engine = TransformEngine(config=GoldenFlowConfig())
+        result = engine.transform_df(df)
         return result.df
