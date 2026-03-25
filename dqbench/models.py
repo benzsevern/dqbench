@@ -46,3 +46,41 @@ class Scorecard:
         for t in self.tiers:
             total += t.issue_f1 * weights.get(t.tier, 0) * 100
         return round(total, 2)
+
+
+@dataclass
+class TransformColumnResult:
+    column: str
+    planted_cells: int
+    correct_cells: int
+    wrong_cells: int
+    skipped_cells: int  # cells where output == messy input
+    accuracy: float
+
+
+@dataclass
+class TransformTierResult:
+    tier: int
+    accuracy: float
+    correct_cells: int
+    wrong_cells: int
+    skipped_cells: int
+    planted_cells: int
+    time_seconds: float
+    memory_mb: float
+    per_column: list[TransformColumnResult]
+
+
+@dataclass
+class TransformScorecard:
+    tool_name: str
+    tool_version: str
+    tiers: list[TransformTierResult]
+
+    @property
+    def composite_score(self) -> float:
+        weights = {1: 0.20, 2: 0.40, 3: 0.40}
+        total = 0.0
+        for t in self.tiers:
+            total += t.accuracy * weights.get(t.tier, 0) * 100
+        return round(total, 2)

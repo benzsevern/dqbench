@@ -14,6 +14,8 @@ app = typer.Typer(name="dqbench", help="The standard benchmark for data quality 
 BUILTIN_ADAPTERS: dict[str, str] = {
     # GoldenCheck
     "goldencheck": "dqbench.adapters.goldencheck:GoldenCheckAdapter",
+    # GoldenFlow
+    "goldenflow": "dqbench.adapters.goldenflow:GoldenFlowAdapter",
     # Great Expectations
     "gx-zero":     "dqbench.adapters.great_expectations_adapter:GXZeroConfigAdapter",
     "gx-auto":     "dqbench.adapters.great_expectations_adapter:GXAutoProfileAdapter",
@@ -31,6 +33,7 @@ BUILTIN_ADAPTERS: dict[str, str] = {
 # Order for the comparison table
 ALL_ADAPTER_NAMES = [
     "goldencheck",
+    "goldenflow",
     "gx-zero",
     "gx-auto",
     "gx-best",
@@ -125,7 +128,7 @@ def _load_adapter(name: str, path: Path | None = None):
         spec.loader.exec_module(mod)
         for attr in dir(mod):
             obj = getattr(mod, attr)
-            if isinstance(obj, type) and hasattr(obj, "validate") and obj.__name__ != "DQBenchAdapter":
+            if isinstance(obj, type) and (hasattr(obj, "validate") or hasattr(obj, "transform")) and obj.__name__ not in ("DQBenchAdapter", "TransformAdapter"):
                 return obj()
         raise typer.Exit("No DQBenchAdapter subclass found in adapter file.")
 

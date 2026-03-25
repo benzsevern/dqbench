@@ -39,6 +39,7 @@ dqbench = "dqbench.cli:app"
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.4"]
 goldencheck = ["goldencheck>=0.2.0"]
+transform = ["goldenflow>=0.1"]
 
 [tool.ruff]
 line-length = 100
