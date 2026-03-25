@@ -66,14 +66,24 @@ def run(
 
     adapter = _load_adapter(adapter_name, adapter_path)
     tiers = [tier] if tier else None
-    scorecard = run_benchmark(adapter, tiers=tiers)
 
-    if json_output:
-        from dqbench.report import report_json
-        report_json(scorecard, sys.stdout)
+    from dqbench.adapters.base import TransformAdapter
+    if isinstance(adapter, TransformAdapter):
+        from dqbench.runner import run_transform_benchmark
+        from dqbench.report import report_transform_rich, report_transform_json
+        scorecard = run_transform_benchmark(adapter, tiers=tiers)
+        if json_output:
+            report_transform_json(scorecard, sys.stdout)
+        else:
+            report_transform_rich(scorecard)
     else:
-        from dqbench.report import report_rich
-        report_rich(scorecard)
+        scorecard = run_benchmark(adapter, tiers=tiers)
+        if json_output:
+            from dqbench.report import report_json
+            report_json(scorecard, sys.stdout)
+        else:
+            from dqbench.report import report_rich
+            report_rich(scorecard)
 
 
 def _run_all(tier: Optional[int] = None) -> None:

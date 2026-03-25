@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-from dqbench.models import Scorecard
+from dqbench.models import Scorecard, TransformScorecard
 
 
 def report_rich(scorecard: Scorecard) -> None:
@@ -168,5 +168,77 @@ def report_json(scorecard: Scorecard, output: IO[str]) -> None:
         data["llm_cost"] = scorecard.llm_cost
     if scorecard.confidence_calibration is not None:
         data["confidence_calibration"] = scorecard.confidence_calibration
+    json.dump(data, output, indent=2)
+    output.write("\n")
+
+
+def report_transform_rich(scorecard: TransformScorecard) -> None:
+    """Pretty-print transform benchmark results."""
+    console = Console()
+    console.print(
+        f"\n[bold]Transform Benchmark: {scorecard.tool_name} v{scorecard.tool_version}[/bold]\n"
+    )
+
+    table = Table(box=box.ROUNDED, show_header=True, header_style="bold magenta")
+    table.add_column("Tier", style="cyan")
+    table.add_column("Accuracy", style="green")
+    table.add_column("Correct", style="green")
+    table.add_column("Wrong", style="red")
+    table.add_column("Skipped", style="yellow")
+    table.add_column("Planted", style="dim")
+    table.add_column("Time", style="dim")
+    table.add_column("Memory", style="dim")
+
+    for t in scorecard.tiers:
+        table.add_row(
+            f"T{t.tier}",
+            f"{t.accuracy:.1%}",
+            str(t.correct_cells),
+            str(t.wrong_cells),
+            str(t.skipped_cells),
+            str(t.planted_cells),
+            f"{t.time_seconds:.2f}s",
+            f"{t.memory_mb:.1f} MB",
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[bold]DQBench Transform Score: {scorecard.composite_score:.2f} / 100[/bold]\n"
+    )
+
+    # Per-column breakdown for each tier
+    for t in scorecard.tiers:
+        if not t.per_column:
+            continue
+        col_table = Table(
+            title=f"Tier {t.tier}: Per-Column Accuracy",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold yellow",
+        )
+        col_table.add_column("Column", style="cyan")
+        col_table.add_column("Accuracy", style="green")
+        col_table.add_column("Correct", style="green")
+        col_table.add_column("Planted", style="dim")
+
+        for c in sorted(t.per_column, key=lambda x: x.accuracy):
+            col_table.add_row(
+                c.column,
+                f"{c.accuracy:.1%}",
+                str(c.correct_cells),
+                str(c.planted_cells),
+            )
+
+        console.print(col_table)
+
+
+def report_transform_json(scorecard: TransformScorecard, output: IO[str]) -> None:
+    """Serialize a TransformScorecard to JSON and write to output stream."""
+    data = {
+        "tool_name": scorecard.tool_name,
+        "tool_version": scorecard.tool_version,
+        "composite_score": scorecard.composite_score,
+        "tiers": [dataclasses.asdict(t) for t in scorecard.tiers],
+    }
     json.dump(data, output, indent=2)
     output.write("\n")

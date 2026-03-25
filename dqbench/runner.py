@@ -5,8 +5,10 @@ import tracemalloc
 import json
 from pathlib import Path
 
-from dqbench.adapters.base import DQBenchAdapter
-from dqbench.models import Scorecard
+import polars as pl
+
+from dqbench.adapters.base import DQBenchAdapter, TransformAdapter
+from dqbench.models import Scorecard, TransformScorecard
 from dqbench.ground_truth import load_ground_truth
 from dqbench.scorer import score_tier
 
@@ -28,6 +30,14 @@ def ensure_datasets() -> None:
         df.write_csv(tier_dir / "data.csv")
         with open(tier_dir / "ground_truth.json", "w") as f:
             json.dump(gt.model_dump() if hasattr(gt, "model_dump") else gt.__dict__, f, indent=2)
+
+
+def ensure_clean_datasets() -> None:
+    """Generate clean ground truth CSVs if not cached."""
+    if (CACHE_DIR / "tier1" / "data_clean.csv").exists():
+        return
+    from dqbench.generator.clean import generate_clean_csvs
+    generate_clean_csvs(CACHE_DIR)
 
 
 def run_benchmark(
@@ -61,3 +71,46 @@ def run_benchmark(
         results.append(result)
 
     return Scorecard(tool_name=adapter.name, tool_version=adapter.version, tiers=results)
+
+
+def run_transform_benchmark(
+    adapter: TransformAdapter,
+    tiers: list[int] | None = None,
+) -> TransformScorecard:
+    """Run transform benchmark and return a scorecard."""
+    from dqbench.transform_scorer import score_transform_tier
+
+    ensure_datasets()
+    ensure_clean_datasets()
+    tier_nums = tiers or [1, 2, 3]
+    results = []
+
+    for tier_num in tier_nums:
+        tier_dir = CACHE_DIR / f"tier{tier_num}"
+        csv_path = tier_dir / "data.csv"
+        clean_path = tier_dir / "data_clean.csv"
+
+        if not clean_path.exists():
+            continue
+
+        tracemalloc.start()
+        t0 = time.perf_counter()
+        result_df = adapter.transform(csv_path)
+        elapsed = time.perf_counter() - t0
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        clean_df = pl.read_csv(clean_path, infer_schema_length=0)
+        messy_df = pl.read_csv(csv_path, infer_schema_length=0)
+
+        tier_result = score_transform_tier(
+            result_df, clean_df, messy_df, tier=tier_num,
+            time_seconds=elapsed, memory_mb=peak / (1024 * 1024),
+        )
+        results.append(tier_result)
+
+    return TransformScorecard(
+        tool_name=adapter.name,
+        tool_version=adapter.version,
+        tiers=results,
+    )
