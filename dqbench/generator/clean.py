@@ -107,17 +107,25 @@ def generate_clean_tier1() -> pl.DataFrame:
     for i, r in enumerate(numeric_lname_rows):
         last_names[r] = numeric_strings[i]
 
-    # email — TRANSFORMABLE: invalid_format (non-email → original generated email)
-    # The clean email is the generated fn.ln@domain value.
-    # We must consume the rng.choice(FIRST_NAMES) call for null first_name rows
-    # to stay in sync with tier1's email loop.
+    # email — DETECTION-ONLY: invalid_format (non-email values like "N/A", "555-867-5309")
+    # A transform tool cannot restore the original email from garbage input.
+    # Clean email = generated value, but bad_email_rows get the messy value (same as tier1).
+    bad_email_values = [
+        "555-867-5309", "N/A", "n/a", "none", "NONE", "NULL", "not provided",
+        "555-234-5678", "N/A", "gibberish@@", "plainaddress", "missing",
+        "555-111-2222", "unknown", "@nodomain", "user@", "N/A",
+        "555-999-0000", "no email", "@@@@", "1234567890", "N/A",
+        "555-444-3333", "not available", "---",
+    ]
     emails_clean: list[str] = []
     for i in range(NROWS):
         fn = first_names[i] if first_names[i] is not None else rng.choice(FIRST_NAMES)
         ln = last_names[i]
         domain = rng.choice(DOMAINS)
         emails_clean.append(f"{fn.lower()}.{ln.lower()}@{domain}")
-    # Do NOT apply bad_email_values overrides → clean email is the original generated one.
+    # Apply bad_email_values to match messy (detection-only — no correct transform exists)
+    for i, r in enumerate(bad_email_rows):
+        emails_clean[r] = bad_email_values[i]
 
     # phone — TRANSFORMABLE: inconsistent_format → E.164 canonical (+1XXXXXXXXXX)
     phones_clean: list[str] = []
