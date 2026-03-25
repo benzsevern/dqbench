@@ -99,14 +99,13 @@ def generate_clean_tier1() -> pl.DataFrame:
     for r in null_fname_rows:
         first_names[r] = None  # messy value kept
 
-    # last_name — TRANSFORMABLE: wrong_type (numeric strings → name strings)
-    # Clean version = the originally-generated name string before mutation.
-    # We regenerated the name already via rng.choice(LAST_NAMES); we just
-    # don't apply the numeric_strings override.
+    # last_name — DETECTION-ONLY: wrong_type (numeric strings — no correct transform)
+    # Clean version = same as messy (detection-only, no auto-correction possible).
     last_names: list[str] = [rng.choice(LAST_NAMES) for _ in range(NROWS)]
-    # Do NOT apply numeric_strings mutation → clean version kept.
-    # But we must still consume the pool iteration the same way tier1 does
-    # (tier1 iterates numeric_lname_rows in enumerate order — no extra rng draws).
+    # Apply the same numeric_strings mutation as tier1 so messy == clean for these rows.
+    numeric_strings = ["12345", "67890", "11111", "54321", "99999"]
+    for i, r in enumerate(numeric_lname_rows):
+        last_names[r] = numeric_strings[i]
 
     # email — TRANSFORMABLE: invalid_format (non-email → original generated email)
     # The clean email is the generated fn.ln@domain value.
@@ -120,24 +119,28 @@ def generate_clean_tier1() -> pl.DataFrame:
         emails_clean.append(f"{fn.lower()}.{ln.lower()}@{domain}")
     # Do NOT apply bad_email_values overrides → clean email is the original generated one.
 
-    # phone — TRANSFORMABLE: inconsistent_format → canonical (XXX) XXX-XXXX
+    # phone — TRANSFORMABLE: inconsistent_format → E.164 canonical (+1XXXXXXXXXX)
     phones_clean: list[str] = []
     for i in range(NROWS):
         area = rng.randint(200, 999)
         prefix = rng.randint(200, 999)
         line = rng.randint(1000, 9999)
         _fmt = rng.choice([0, 1, 2])  # consume the rng draw (same as tier1)
-        # Clean canonical format is always fmt==0: (XXX) XXX-XXXX
-        phones_clean.append(f"({area}) {prefix}-{line}")
+        # Clean canonical format is E.164: +1{area}{prefix}{line}
+        phones_clean.append(f"+1{area}{prefix}{line}")
 
-    # age — TRANSFORMABLE for wrong_type (string ages), DETECTION-ONLY for outliers.
-    # Clean: restore the integer for string-type rows; keep messy for outliers.
+    # age — DETECTION-ONLY for both wrong_type (string ages) and outliers.
+    # Clean version = same as messy for all age issues (no auto-correction).
+    age_str_pool = ["thirty", "twenty-five", "forty", "fifty", "sixty", "eighteen",
+                    "twenty", "thirty-five", "forty-five", "fifty-five",
+                    "sixty-five", "seventy", "nineteen", "twenty-two", "twenty-eight",
+                    "thirty-two", "forty-two", "fifty-two", "sixty-two", "seventy-five"]
     ages_base: list[int] = [rng.randint(18, 80) for _ in range(NROWS)]
     ages_clean: list[str | None] = [str(a) for a in ages_base]
-    # For age_str_rows: the original value is already in ages_base (integer).
-    # Clean version is the integer string — same as ages_base[r].
-    # Nothing to override for those rows.
-    # For age_outlier_rows: detection-only → keep the messy value (outlier number).
+    # Apply string age mutation (same as tier1) — detection-only, keep messy value.
+    for i, r in enumerate(age_str_rows):
+        ages_clean[r] = age_str_pool[i]
+    # Apply outlier mutation (same as tier1) — detection-only, keep messy value.
     age_outlier_pool = [999, -1, 0, 200, 999, -1, 0, 200]
     for i, r in enumerate(age_outlier_rows):
         ages_clean[r] = str(age_outlier_pool[i])  # keep messy (detection-only)
@@ -147,23 +150,18 @@ def generate_clean_tier1() -> pl.DataFrame:
     for r in income_outlier_rows:
         incomes[r] = 9999999.99  # keep messy value
 
-    # status — TRANSFORMABLE: misspelled_values → canonical
+    # status — DETECTION-ONLY: misspelled_values (no auto-correction in GoldenFlow yet)
+    # Clean version = same as messy (keep misspelled values).
     misspelled_statuses = [
         "actve", "ACTIVE", "Inactive", "pendng", "actve",
         "ACTIVE", "Inactive", "pendng", "actve", "ACTIVE",
         "Inactive", "pendng", "actve", "ACTIVE", "Inactive",
     ]
-    # Canonical mapping (case-insensitive)
-    _status_canon = {
-        "actve": "active", "active": "active", "ACTIVE": "active",
-        "inactive": "inactive", "Inactive": "inactive", "INACTIVE": "inactive",
-        "pendng": "pending", "pending": "pending", "PENDING": "pending",
-    }
     statuses_base: list[str] = [rng.choice(STATUSES) for _ in range(NROWS)]
     statuses_clean: list[str] = list(statuses_base)
+    # Apply the same misspelling mutation as tier1 so messy == clean for these rows.
     for i, r in enumerate(status_bad_rows):
-        bad_val = misspelled_statuses[i]
-        statuses_clean[r] = _status_canon.get(bad_val, bad_val)
+        statuses_clean[r] = misspelled_statuses[i]
 
     # signup_date — TRANSFORMABLE: inconsistent_format → YYYY-MM-DD
     signup_dates_raw: list[date] = [_rand_date(rng, start_date, end_date) for _ in range(NROWS)]
@@ -179,19 +177,14 @@ def generate_clean_tier1() -> pl.DataFrame:
         last_logins_raw[r] = sd - timedelta(days=rng.randint(1, 30))
     last_logins_clean: list[str] = [_fmt_date(d) for d in last_logins_raw]
 
-    # country — TRANSFORMABLE: invalid_values → drop invalid codes (keep messy for now,
-    # since we don't know the "correct" country; detection-only in practice)
-    # Per spec: invalid_values IS transformable, but for country we have no correct
-    # value to restore (the original was already a valid country from COUNTRIES pool).
-    # Actually, the country column IS generated from COUNTRIES first, THEN overwritten.
-    # We can restore the original generated value for the bad rows.
+    # country — DETECTION-ONLY: invalid_values (GoldenFlow doesn't auto-detect these yet)
+    # Clean version = same as messy (keep invalid codes).
     countries_base: list[str] = [rng.choice(COUNTRIES) for _ in range(NROWS)]
     countries_clean: list[str] = list(countries_base)
     invalid_country_pool = ["XX", "ZZ", "QQ", "99", "XX", "ZZ", "QQ", "99", "XX", "ZZ"]
-    # For country_bad_rows, countries_base already has the original valid value.
-    # The messy CSV overwrites them with invalid codes.
-    # Clean version = countries_base[r] (original valid country code).
-    # countries_clean is already set to countries_base, so nothing to change.
+    # Apply the same invalid country mutation as tier1 so messy == clean for these rows.
+    for i, r in enumerate(country_bad_rows):
+        countries_clean[r] = invalid_country_pool[i]
 
     # zip_code — TRANSFORMABLE: inconsistent_format → 5-digit only
     zip_codes_clean: list[str] = []
