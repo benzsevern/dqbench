@@ -27,5 +27,6 @@ class GoldenFlowAdapter(TransformAdapter):
         # Read all columns as strings to handle mixed-type columns (e.g., age with "forty")
         df = pl.read_csv(csv_path, infer_schema_length=0)
         engine = TransformEngine(config=GoldenFlowConfig())
-        result = engine.transform_df(df)
+        # Pass file_path so profiler bridge can use GoldenCheck when available
+        result = engine.transform_df(df, source=str(csv_path))
         return result.df

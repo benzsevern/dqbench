@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: DQBench Discussions
+    url: https://github.com/benzsevern/dqbench/discussions
+    about: Ask questions and share ideas in the DQBench community discussions.

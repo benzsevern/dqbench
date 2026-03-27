@@ -1,0 +1,16 @@
+# DQBench
+
+> Standardized benchmark for data quality validation tools — the ImageNet of data quality.
+
+## Interfaces
+- CLI: `dqbench run <adapter>`, `dqbench run all`, `dqbench score`, + 5 more commands
+- Python API: `from dqbench.runner import run_benchmark` — 20+ exports
+
+## Install
+- `pip install dqbench`
+
+## Docs
+- [Architecture](CLAUDE.md): Full codebase guide with scoring rules, patterns, and gotchas
+- [PyPI](https://pypi.org/project/dqbench/): Package page
+- [GitHub](https://github.com/benzsevern/dqbench): Source
+- [Full API Reference](llms-full.txt): Extended documentation with all function signatures and usage patterns
