@@ -1,0 +1,22 @@
+title: DQBench
+description: The standard benchmark for data quality and validation tools.
+url: https://benzsevern.github.io
+baseurl: /dqbench
+remote_theme: just-the-docs/just-the-docs@v0.10.0
+color_scheme: dark
+
+permalink: pretty
+
+aux_links:
+  PyPI: https://pypi.org/project/dqbench/
+  GitHub: https://github.com/benzsevern/dqbench
+
+aux_links_new_tab: true
+nav_sort: case_insensitive
+footer_content: "DQBench &mdash; MIT License"
+search_enabled: true
+back_to_top: true
+back_to_top_text: Back to top
+
+exclude:
+  - superpowers/

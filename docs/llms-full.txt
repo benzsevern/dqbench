@@ -1,0 +1,256 @@
+# DQBench — Full API Reference
+
+> Standardized benchmark for data quality validation tools — the ImageNet of data quality.
+> See also: [llms.txt](llms.txt) for a concise overview.
+
+## Install
+
+```bash
+pip install dqbench
+pip install dqbench[dev]   # With dev/test dependencies
+```
+
+## Quick Start
+
+```python
+from dqbench.runner import run_benchmark
+from dqbench.adapters.goldencheck import GoldenCheckAdapter
+
+scorecard = run_benchmark(GoldenCheckAdapter())
+print(f"DQBench Score: {scorecard.dqbench_score}")
+```
+
+## Runner API
+
+```python
+from dqbench.runner import (
+    run_benchmark,           # run_benchmark(adapter, tiers=None) -> Scorecard
+    run_transform_benchmark, # run_transform_benchmark(adapter, tiers=None) -> TransformScorecard
+    ensure_datasets,         # ensure_datasets() -> None  (generate/cache tier datasets)
+    ensure_clean_datasets,   # ensure_clean_datasets() -> None  (generate clean ground truth)
+)
+```
+
+### run_benchmark(adapter, tiers=None) -> Scorecard
+
+Runs a validation adapter against all 3 benchmark tiers. Measures detection accuracy, false positive rate, timing, and memory usage.
+
+- `adapter`: Any `DQBenchAdapter` subclass instance
+- `tiers`: Optional list of tier numbers (default: [1, 2, 3])
+
+### run_transform_benchmark(adapter, tiers=None) -> TransformScorecard
+
+Runs a transform adapter against all tiers. Compares output against clean ground truth CSVs.
+
+- `adapter`: Any `TransformAdapter` subclass instance
+- `tiers`: Optional list of tier numbers
+
+## Models
+
+```python
+from dqbench.models import (
+    DQBenchFinding,          # DQBenchFinding(column, severity, check, message, confidence=1.0)
+    TierResult,              # Per-tier scores: recall, precision, f1, issue_recall, issue_precision, issue_f1
+    Scorecard,               # Scorecard: tool_name, tool_version, tiers, .dqbench_score property
+    TransformColumnResult,   # Per-column transform accuracy
+    TransformTierResult,     # Per-tier transform accuracy, timing, memory
+    TransformScorecard,      # TransformScorecard: tool_name, tool_version, tiers, .composite_score
+)
+```
+
+### DQBenchFinding fields
+
+| Field      | Type    | Description                                          |
+|------------|---------|------------------------------------------------------|
+| column     | str     | Column name (comma-separate for cross-column checks) |
+| severity   | str     | "ERROR", "WARNING", or "INFO"                        |
+| check      | str     | Machine-readable check name                          |
+| message    | str     | Human-readable description                           |
+| confidence | float   | 0.0-1.0, default 1.0                                |
+
+### Scorecard.dqbench_score
+
+Composite score (0-100): `T1_issue_F1 * 20% + T2_issue_F1 * 40% + T3_issue_F1 * 40%`
+
+### TransformScorecard.composite_score
+
+Composite score (0-100): `T1_accuracy * 20% + T2_accuracy * 40% + T3_accuracy * 40%`
+
+## Adapter Interface
+
+### Validation Adapter
+
+```python
+from dqbench.adapters.base import DQBenchAdapter
+
+class MyToolAdapter(DQBenchAdapter):
+    @property
+    def name(self) -> str:
+        return "mytool"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+
+    def validate(self, csv_path: Path) -> list[DQBenchFinding]:
+        # Run your tool, convert findings to DQBenchFinding
+        ...
+```
+
+### Transform Adapter
+
+```python
+from dqbench.adapters.base import TransformAdapter
+
+class MyTransformAdapter(TransformAdapter):
+    @property
+    def name(self) -> str:
+        return "mytool-transform"
+
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+
+    def transform(self, csv_path: Path) -> pl.DataFrame:
+        # Transform the messy CSV, return cleaned DataFrame
+        ...
+```
+
+## Built-in Adapters
+
+| Adapter name          | Tool            | Mode         |
+|-----------------------|-----------------|--------------|
+| `goldencheck`         | GoldenCheck     | zero-config  |
+| `goldenflow`          | GoldenFlow      | zero-config  |
+| `gx-zero`             | Great Expectations | zero-config |
+| `gx-auto`             | Great Expectations | auto-profiled |
+| `gx-best`             | Great Expectations | best-effort  |
+| `pandera-zero`        | Pandera         | zero-config  |
+| `pandera-auto`        | Pandera         | auto-profiled |
+| `pandera-best`        | Pandera         | best-effort  |
+| `soda-zero`           | Soda Core       | zero-config  |
+| `soda-auto`           | Soda Core       | auto-profiled |
+| `soda-best`           | Soda Core       | best-effort  |
+
+## Scoring
+
+```python
+from dqbench.scorer import score_tier
+
+tier_result = score_tier(findings, ground_truth, tier=1, time_seconds=0.5, memory_mb=10.0)
+```
+
+### Scoring rules
+- **Column Recall**: any finding on a planted column counts as detected
+- **Column FPR**: WARNING/ERROR on a clean column = false positive (INFO is never penalized)
+- **Issue Recall**: finding must match the planted issue type (via keyword matching)
+- **Issue Precision**: matched findings / (total findings on planted columns + FPs)
+- **DQBench Score**: weighted issue-level F1 across tiers
+
+## Ground Truth
+
+```python
+from dqbench.ground_truth import (
+    GroundTruth,       # GroundTruth: planted_columns (list of PlantedColumn), clean_columns
+    PlantedColumn,     # PlantedColumn: column, issue_type, severity, description
+    load_ground_truth, # load_ground_truth(path) -> GroundTruth
+)
+```
+
+## Report API
+
+```python
+from dqbench.report import (
+    report_rich,            # report_rich(scorecard) -> None  (Rich console output)
+    report_comparison,      # report_comparison(scorecards) -> None  (side-by-side comparison)
+    report_json,            # report_json(scorecard, output) -> None  (JSON output)
+    report_transform_rich,  # report_transform_rich(scorecard) -> None
+    report_transform_json,  # report_transform_json(scorecard, output) -> None
+)
+```
+
+## Dataset Generation
+
+```python
+from dqbench.generator.tier1 import generate_tier1  # -> (pl.DataFrame, GroundTruth)
+from dqbench.generator.tier2 import generate_tier2
+from dqbench.generator.tier3 import generate_tier3
+from dqbench.generator.clean import generate_clean_csvs  # generate_clean_csvs(cache_dir)
+```
+
+Datasets are deterministic (seeded with `random.Random(42)`) and cached in `~/.dqbench/datasets/`.
+
+### Tier descriptions
+- **Tier 1**: Basic issues (nulls, type errors, format violations)
+- **Tier 2**: Statistical anomalies (outliers, distribution shifts, correlations)
+- **Tier 3**: Domain-specific issues (healthcare NPIs, temporal logic, cross-column constraints)
+
+## Common Usage Patterns
+
+### Benchmark a single tool
+```python
+from dqbench.runner import run_benchmark
+from dqbench.report import report_rich
+from dqbench.adapters.goldencheck import GoldenCheckAdapter
+
+scorecard = run_benchmark(GoldenCheckAdapter())
+report_rich(scorecard)
+```
+
+### Head-to-head comparison
+```python
+from dqbench.runner import run_benchmark
+from dqbench.report import report_comparison
+
+scorecards = []
+for adapter in [GoldenCheckAdapter(), GXZeroConfigAdapter(), SodaZeroConfigAdapter()]:
+    scorecards.append(run_benchmark(adapter))
+report_comparison(scorecards)
+```
+
+### Run a single tier
+```python
+scorecard = run_benchmark(adapter, tiers=[3])  # Only tier 3
+```
+
+### Custom adapter (no registration needed)
+```bash
+dqbench run mytool --adapter path/to/my_adapter.py
+```
+The file is scanned for any `DQBenchAdapter` subclass and instantiated automatically.
+
+### Transform benchmark
+```python
+from dqbench.runner import run_transform_benchmark
+from dqbench.adapters.goldenflow import GoldenFlowAdapter
+
+scorecard = run_transform_benchmark(GoldenFlowAdapter())
+print(f"Transform Score: {scorecard.composite_score}")
+```
+
+### JSON output for CI
+```python
+import sys
+from dqbench.report import report_json
+
+report_json(scorecard, sys.stdout)
+```
+
+## CLI Commands
+
+```bash
+dqbench run goldencheck                    # Benchmark GoldenCheck
+dqbench run all                            # Head-to-head comparison of all tools
+dqbench run mytool --adapter my_adapter.py # Custom adapter
+dqbench run goldencheck --tier 3           # Single tier only
+dqbench generate                           # Generate/cache datasets
+dqbench generate --force                   # Regenerate from scratch
+dqbench results                            # Show cached results
+dqbench score                              # Quick score display
+```
+
+## Links
+
+- [GitHub](https://github.com/benzsevern/dqbench)
+- [PyPI](https://pypi.org/project/dqbench/)
+- [Concise overview](llms.txt)
