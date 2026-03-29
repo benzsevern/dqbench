@@ -121,20 +121,14 @@ def ensure_er_datasets() -> None:
     if (CACHE_DIR / "er_tier1" / "data.csv").exists():
         return
     from dqbench.generator.er_tier1 import generate_er_tier1
+    from dqbench.generator.er_tier2 import generate_er_tier2
+    from dqbench.generator.er_tier3 import generate_er_tier3
 
-    generators = [(1, generate_er_tier1)]
-
-    # Import tier 2 and 3 if available
-    try:
-        from dqbench.generator.er_tier2 import generate_er_tier2
-        generators.append((2, generate_er_tier2))
-    except ImportError:
-        pass
-    try:
-        from dqbench.generator.er_tier3 import generate_er_tier3
-        generators.append((3, generate_er_tier3))
-    except ImportError:
-        pass
+    generators = [
+        (1, generate_er_tier1),
+        (2, generate_er_tier2),
+        (3, generate_er_tier3),
+    ]
 
     for tier_num, gen_fn in generators:
         tier_dir = CACHE_DIR / f"er_tier{tier_num}"

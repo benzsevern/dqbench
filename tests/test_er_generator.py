@@ -4,6 +4,8 @@ import polars as pl
 import pytest
 
 from dqbench.generator.er_tier1 import generate_er_tier1
+from dqbench.generator.er_tier2 import generate_er_tier2
+from dqbench.generator.er_tier3 import generate_er_tier3
 from dqbench.er_ground_truth import ERGroundTruth
 
 
@@ -54,3 +56,87 @@ class TestERTier1:
         assert gt.tier == 1
         assert gt.difficulty == "easy"
         assert gt.version == "1.0.0"
+
+
+class TestERTier2:
+    def test_returns_dataframe_and_ground_truth(self):
+        df, gt = generate_er_tier2()
+        assert isinstance(df, pl.DataFrame)
+        assert isinstance(gt, ERGroundTruth)
+
+    def test_row_count(self):
+        df, gt = generate_er_tier2()
+        assert df.shape[0] == 5000
+        assert gt.rows == 5000
+
+    def test_expected_columns(self):
+        df, _ = generate_er_tier2()
+        expected = {"first_name", "last_name", "email", "phone",
+                    "address", "city", "state", "zip", "company"}
+        assert set(df.columns) == expected
+
+    def test_duplicate_pair_count(self):
+        _, gt = generate_er_tier2()
+        assert gt.total_duplicates == 750
+        assert len(gt.duplicate_pairs) == 750
+
+    def test_pairs_reference_valid_rows(self):
+        df, gt = generate_er_tier2()
+        n = df.shape[0]
+        for a, b in gt.duplicate_pairs:
+            assert 0 <= a < n, f"Invalid row index {a}"
+            assert 0 <= b < n, f"Invalid row index {b}"
+            assert a != b, f"Self-pair ({a}, {a})"
+
+    def test_determinism(self):
+        df1, gt1 = generate_er_tier2()
+        df2, gt2 = generate_er_tier2()
+        assert df1.equals(df2)
+        assert gt1.duplicate_pairs == gt2.duplicate_pairs
+
+    def test_ground_truth_metadata(self):
+        _, gt = generate_er_tier2()
+        assert gt.tier == 2
+        assert gt.difficulty == "fuzzy"
+
+
+class TestERTier3:
+    def test_returns_dataframe_and_ground_truth(self):
+        df, gt = generate_er_tier3()
+        assert isinstance(df, pl.DataFrame)
+        assert isinstance(gt, ERGroundTruth)
+
+    def test_row_count(self):
+        df, gt = generate_er_tier3()
+        assert df.shape[0] == 10000
+        assert gt.rows == 10000
+
+    def test_expected_columns(self):
+        df, _ = generate_er_tier3()
+        expected = {"first_name", "last_name", "email", "phone",
+                    "address", "city", "state", "zip", "company"}
+        assert set(df.columns) == expected
+
+    def test_duplicate_pair_count(self):
+        _, gt = generate_er_tier3()
+        assert gt.total_duplicates == 2000
+        assert len(gt.duplicate_pairs) == 2000
+
+    def test_pairs_reference_valid_rows(self):
+        df, gt = generate_er_tier3()
+        n = df.shape[0]
+        for a, b in gt.duplicate_pairs:
+            assert 0 <= a < n, f"Invalid row index {a}"
+            assert 0 <= b < n, f"Invalid row index {b}"
+            assert a != b, f"Self-pair ({a}, {a})"
+
+    def test_determinism(self):
+        df1, gt1 = generate_er_tier3()
+        df2, gt2 = generate_er_tier3()
+        assert df1.equals(df2)
+        assert gt1.duplicate_pairs == gt2.duplicate_pairs
+
+    def test_ground_truth_metadata(self):
+        _, gt = generate_er_tier3()
+        assert gt.tier == 3
+        assert gt.difficulty == "adversarial"

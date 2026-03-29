@@ -97,3 +97,50 @@ PHONE_AREA_CODES = [
     "212", "310", "312", "415", "512", "617", "702", "713", "718", "773",
     "818", "917", "202", "305", "404", "503", "602", "614", "704", "916",
 ]
+
+# ---- ER Tier 2: Nickname mappings ----
+NICKNAME_MAP: dict[str, list[str]] = {
+    "Robert": ["Bob", "Rob", "Bobby"],
+    "Elizabeth": ["Liz", "Beth", "Lizzy"],
+    "William": ["Bill", "Will", "Billy"],
+    "James": ["Jim", "Jimmy"],
+    "Richard": ["Rick", "Dick", "Rich"],
+    "Michael": ["Mike", "Mikey"],
+    "Jennifer": ["Jen", "Jenny"],
+    "Patricia": ["Pat", "Patty"],
+    "Margaret": ["Meg", "Maggie", "Peggy"],
+    "Joseph": ["Joe", "Joey"],
+    "Thomas": ["Tom", "Tommy"],
+    "Christopher": ["Chris"],
+    "Daniel": ["Dan", "Danny"],
+    "Matthew": ["Matt"],
+    "Anthony": ["Tony"],
+    "Steven": ["Steve"],
+    "Kenneth": ["Ken", "Kenny"],
+    "Timothy": ["Tim", "Timmy"],
+    "Jessica": ["Jess", "Jessie"],
+    "Barbara": ["Barb"],
+}
+
+# ---- ER Tier 3: Phonetic variants ----
+PHONETIC_VARIANTS: dict[str, list[str]] = {
+    "Smith": ["Smyth", "Smithe"],
+    "Thompson": ["Thomson", "Tompson"],
+    "Johnson": ["Johnsen", "Jonson"],
+    "Williams": ["Willams", "Wiliams"],
+    "Anderson": ["Andersen", "Andersson"],
+    "Martinez": ["Martines", "Martinz"],
+    "Wilson": ["Willson", "Wilsen"],
+    "Taylor": ["Tailor", "Tayler"],
+    "Moore": ["More", "Moor"],
+    "Jackson": ["Jacksen", "Jaxon"],
+}
+
+ADDRESS_ABBREVIATIONS: dict[str, str] = {
+    "St": "Street",
+    "Ave": "Avenue",
+    "Blvd": "Boulevard",
+    "Dr": "Drive",
+    "Ln": "Lane",
+    "Rd": "Road",
+}
