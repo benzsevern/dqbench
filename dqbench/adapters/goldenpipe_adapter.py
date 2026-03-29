@@ -18,10 +18,22 @@ class GoldenPipeAdapter(PipelineAdapter):
             return "not-installed"
 
     def run_pipeline(self, csv_path: Path) -> pl.DataFrame:
+        """Run the Golden Suite pipeline: GoldenFlow transform → GoldenMatch dedupe."""
         try:
-            from goldenpipe import Pipeline
+            import goldenflow
+            import goldenmatch
         except ImportError:
-            raise RuntimeError("goldenpipe is not installed. Run: pip install goldenpipe[golden-suite]")
-        pipeline = Pipeline()
-        result = pipeline.run(csv_path)
-        return result.df
+            raise RuntimeError(
+                "goldenpipe requires goldenflow and goldenmatch. "
+                "Run: pip install goldenpipe[golden-suite]"
+            )
+
+        # Step 1: Read and transform with GoldenFlow
+        df = pl.read_csv(csv_path)
+        result = goldenflow.transform_df(df)
+        cleaned = result.df
+
+        # Step 2: Deduplicate with GoldenMatch
+        deduped = goldenmatch.dedupe_df(cleaned)
+
+        return deduped.golden
