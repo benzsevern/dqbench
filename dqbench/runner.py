@@ -7,8 +7,8 @@ from pathlib import Path
 
 import polars as pl
 
-from dqbench.adapters.base import DQBenchAdapter, TransformAdapter
-from dqbench.models import Scorecard, TransformScorecard
+from dqbench.adapters.base import DQBenchAdapter, TransformAdapter, EntityResolutionAdapter
+from dqbench.models import Scorecard, TransformScorecard, ERScorecard
 from dqbench.ground_truth import load_ground_truth
 from dqbench.scorer import score_tier
 
@@ -113,4 +113,77 @@ def run_transform_benchmark(
         tool_name=adapter.name,
         tool_version=adapter.version,
         tiers=results,
+    )
+
+
+def ensure_er_datasets() -> None:
+    """Generate ER datasets if not cached."""
+    if (CACHE_DIR / "er_tier1" / "data.csv").exists():
+        return
+    from dqbench.generator.er_tier1 import generate_er_tier1
+
+    generators = [(1, generate_er_tier1)]
+
+    # Import tier 2 and 3 if available
+    try:
+        from dqbench.generator.er_tier2 import generate_er_tier2
+        generators.append((2, generate_er_tier2))
+    except ImportError:
+        pass
+    try:
+        from dqbench.generator.er_tier3 import generate_er_tier3
+        generators.append((3, generate_er_tier3))
+    except ImportError:
+        pass
+
+    for tier_num, gen_fn in generators:
+        tier_dir = CACHE_DIR / f"er_tier{tier_num}"
+        tier_dir.mkdir(parents=True, exist_ok=True)
+        df, gt = gen_fn()
+        df.write_csv(tier_dir / "data.csv")
+        with open(tier_dir / "er_ground_truth.json", "w") as f:
+            json.dump(gt.model_dump(), f, indent=2)
+
+
+def run_er_benchmark(
+    adapter: EntityResolutionAdapter,
+    tiers: list[int] | None = None,
+    real: bool = False,
+) -> ERScorecard:
+    """Run ER benchmark and return a scorecard."""
+    from dqbench.er_scorer import score_er_tier
+    from dqbench.er_ground_truth import load_er_ground_truth
+
+    ensure_er_datasets()
+    tier_nums = tiers or [1, 2, 3]
+    results = []
+
+    for tier_num in tier_nums:
+        tier_dir = CACHE_DIR / f"er_tier{tier_num}"
+        csv_path = tier_dir / "data.csv"
+        gt_path = tier_dir / "er_ground_truth.json"
+
+        if not csv_path.exists():
+            continue
+
+        gt = load_er_ground_truth(gt_path)
+
+        tracemalloc.start()
+        t0 = time.perf_counter()
+        predictions = adapter.deduplicate(csv_path)
+        elapsed = time.perf_counter() - t0
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        result = score_er_tier(
+            predictions, gt, tier=tier_num,
+            time_seconds=elapsed, memory_mb=peak / (1024 * 1024),
+        )
+        results.append(result)
+
+    return ERScorecard(
+        tool_name=adapter.name,
+        tool_version=adapter.version,
+        tiers=results,
+        real_datasets=None,
     )
