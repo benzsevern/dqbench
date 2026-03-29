@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-from dqbench.models import Scorecard, TransformScorecard
+from dqbench.models import Scorecard, TransformScorecard, ERScorecard, PipelineScorecard
 
 
 def report_rich(scorecard: Scorecard) -> None:
@@ -242,3 +242,235 @@ def report_transform_json(scorecard: TransformScorecard, output: IO[str]) -> Non
     }
     json.dump(data, output, indent=2)
     output.write("\n")
+
+
+# ---------------------------------------------------------------------------
+# ER (Entity Resolution) Reports
+# ---------------------------------------------------------------------------
+
+
+def report_er_rich(scorecard: ERScorecard) -> None:
+    """Pretty-print ER benchmark results."""
+    console = Console()
+    console.print(
+        f"\n[bold]ER Benchmark: {scorecard.tool_name} v{scorecard.tool_version}[/bold]\n"
+    )
+
+    table = Table(box=box.ROUNDED, show_header=True, header_style="bold magenta")
+    table.add_column("Tier", style="cyan")
+    table.add_column("Precision", style="green")
+    table.add_column("Recall", style="green")
+    table.add_column("F1", style="green")
+    table.add_column("FP", style="red")
+    table.add_column("FN", style="red")
+    table.add_column("Time", style="dim")
+    table.add_column("Memory", style="dim")
+
+    for t in scorecard.tiers:
+        table.add_row(
+            f"T{t.tier}",
+            f"{t.precision:.1%}",
+            f"{t.recall:.1%}",
+            f"{t.f1:.1%}",
+            str(t.false_positives),
+            str(t.false_negatives),
+            f"{t.time_seconds:.2f}s",
+            f"{t.memory_mb:.1f} MB",
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[bold]DQBench ER Score: {scorecard.dqbench_er_score:.2f} / 100[/bold]\n"
+    )
+
+    # Real dataset results if present
+    if scorecard.real_datasets:
+        real_table = Table(
+            title="Real-World Datasets",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold yellow",
+        )
+        real_table.add_column("Dataset", style="cyan")
+        real_table.add_column("Precision", style="green")
+        real_table.add_column("Recall", style="green")
+        real_table.add_column("F1", style="green")
+        real_table.add_column("Time", style="dim")
+
+        for r in scorecard.real_datasets:
+            real_table.add_row(
+                r.dataset_name,
+                f"{r.precision:.1%}",
+                f"{r.recall:.1%}",
+                f"{r.f1:.1%}",
+                f"{r.time_seconds:.2f}s",
+            )
+
+        console.print(real_table)
+        console.print()
+
+
+def report_er_json(scorecard: ERScorecard, output: IO[str]) -> None:
+    """Serialize an ERScorecard to JSON and write to output stream."""
+    data = {
+        "tool_name": scorecard.tool_name,
+        "tool_version": scorecard.tool_version,
+        "dqbench_er_score": scorecard.dqbench_er_score,
+        "tiers": [dataclasses.asdict(t) for t in scorecard.tiers],
+    }
+    if scorecard.real_datasets:
+        data["real_datasets"] = [dataclasses.asdict(r) for r in scorecard.real_datasets]
+    json.dump(data, output, indent=2)
+    output.write("\n")
+
+
+def report_er_comparison(scorecards: list[ERScorecard]) -> None:
+    """Print a head-to-head comparison table for ER scorecards."""
+    console = Console()
+
+    all_tiers: list[int] = []
+    for sc in scorecards:
+        for t in sc.tiers:
+            if t.tier not in all_tiers:
+                all_tiers.append(t.tier)
+    all_tiers = sorted(all_tiers)
+
+    console.print()
+    console.rule("[bold cyan]DQBench ER — Head-to-Head Comparison[/bold cyan]")
+    console.print()
+
+    table = Table(
+        title="ER F1 by Tier  (DQBench ER Score = weighted average)",
+        box=box.HEAVY_HEAD,
+        show_header=True,
+        header_style="bold white on dark_blue",
+        border_style="cyan",
+        show_lines=True,
+    )
+
+    table.add_column("Tool", style="bold", min_width=20, no_wrap=True)
+    for tier in all_tiers:
+        table.add_column(f"T{tier} F1", justify="right", min_width=8)
+    table.add_column("Score", justify="right", style="bold green", min_width=7)
+
+    for sc in scorecards:
+        tier_map = {t.tier: t for t in sc.tiers}
+        row = [sc.tool_name]
+        for tier in all_tiers:
+            t = tier_map.get(tier)
+            row.append(f"{t.f1:.1%}" if t else "—")
+        row.append(f"{sc.dqbench_er_score:.2f}")
+        table.add_row(*row)
+
+    console.print(table)
+    console.print()
+
+    if scorecards:
+        best = max(scorecards, key=lambda s: s.dqbench_er_score)
+        console.print(
+            f"[bold]Winner:[/bold] [bold green]{best.tool_name}[/bold green]  "
+            f"[dim]DQBench ER Score = {best.dqbench_er_score:.2f}[/dim]"
+        )
+    console.print()
+
+
+# ---------------------------------------------------------------------------
+# Pipeline Reports
+# ---------------------------------------------------------------------------
+
+
+def report_pipeline_rich(scorecard: PipelineScorecard) -> None:
+    """Pretty-print Pipeline benchmark results."""
+    console = Console()
+    console.print(
+        f"\n[bold]Pipeline Benchmark: {scorecard.tool_name} v{scorecard.tool_version}[/bold]\n"
+    )
+
+    table = Table(box=box.ROUNDED, show_header=True, header_style="bold magenta")
+    table.add_column("Tier", style="cyan")
+    table.add_column("Transform Acc", style="green")
+    table.add_column("Dedup Acc", style="green")
+    table.add_column("Composite", style="green")
+    table.add_column("Output Rows", style="dim")
+    table.add_column("Expected Rows", style="dim")
+    table.add_column("Time", style="dim")
+    table.add_column("Memory", style="dim")
+
+    for t in scorecard.tiers:
+        table.add_row(
+            f"T{t.tier}",
+            f"{t.transform_accuracy:.1%}",
+            f"{t.dedup_accuracy:.1%}",
+            f"{t.composite:.1%}",
+            str(t.output_rows),
+            str(t.expected_rows),
+            f"{t.time_seconds:.2f}s",
+            f"{t.memory_mb:.1f} MB",
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[bold]DQBench Pipeline Score: {scorecard.dqbench_pipeline_score:.2f} / 100[/bold]\n"
+    )
+
+
+def report_pipeline_json(scorecard: PipelineScorecard, output: IO[str]) -> None:
+    """Serialize a PipelineScorecard to JSON and write to output stream."""
+    data = {
+        "tool_name": scorecard.tool_name,
+        "tool_version": scorecard.tool_version,
+        "dqbench_pipeline_score": scorecard.dqbench_pipeline_score,
+        "tiers": [dataclasses.asdict(t) for t in scorecard.tiers],
+    }
+    json.dump(data, output, indent=2)
+    output.write("\n")
+
+
+def report_pipeline_comparison(scorecards: list[PipelineScorecard]) -> None:
+    """Print a head-to-head comparison table for Pipeline scorecards."""
+    console = Console()
+
+    all_tiers: list[int] = []
+    for sc in scorecards:
+        for t in sc.tiers:
+            if t.tier not in all_tiers:
+                all_tiers.append(t.tier)
+    all_tiers = sorted(all_tiers)
+
+    console.print()
+    console.rule("[bold cyan]DQBench Pipeline — Head-to-Head Comparison[/bold cyan]")
+    console.print()
+
+    table = Table(
+        title="Pipeline Composite by Tier  (DQBench Pipeline Score = weighted average)",
+        box=box.HEAVY_HEAD,
+        show_header=True,
+        header_style="bold white on dark_blue",
+        border_style="cyan",
+        show_lines=True,
+    )
+
+    table.add_column("Tool", style="bold", min_width=20, no_wrap=True)
+    for tier in all_tiers:
+        table.add_column(f"T{tier} Composite", justify="right", min_width=10)
+    table.add_column("Score", justify="right", style="bold green", min_width=7)
+
+    for sc in scorecards:
+        tier_map = {t.tier: t for t in sc.tiers}
+        row = [sc.tool_name]
+        for tier in all_tiers:
+            t = tier_map.get(tier)
+            row.append(f"{t.composite:.1%}" if t else "—")
+        row.append(f"{sc.dqbench_pipeline_score:.2f}")
+        table.add_row(*row)
+
+    console.print(table)
+    console.print()
+
+    if scorecards:
+        best = max(scorecards, key=lambda s: s.dqbench_pipeline_score)
+        console.print(
+            f"[bold]Winner:[/bold] [bold green]{best.tool_name}[/bold green]  "
+            f"[dim]DQBench Pipeline Score = {best.dqbench_pipeline_score:.2f}[/dim]"
+        )
+    console.print()
