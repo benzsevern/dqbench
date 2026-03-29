@@ -24,24 +24,46 @@ class GoldenMatchAdapter(EntityResolutionAdapter):
             raise RuntimeError("goldenmatch is not installed. Run: pip install goldenmatch")
 
         df = pl.read_csv(csv_path)
-        result = goldenmatch.dedupe_df(df)
 
-        # Extract duplicate pairs from the dupes DataFrame
-        # dupes.__row_id__ contains the 0-based row indices of duplicate records
+        # Use explicit config for benchmark data columns
+        fuzzy_cols = {}
+        exact_cols = []
+        for col in df.columns:
+            if col.startswith("_"):
+                continue
+            if col in ("email",):
+                exact_cols.append(col)
+            elif col in ("first_name", "last_name", "company", "address", "city"):
+                fuzzy_cols[col] = 0.8
+
+        result = goldenmatch.dedupe_df(
+            df,
+            fuzzy=fuzzy_cols or None,
+            exact=exact_cols or None,
+        )
+
+        # Extract duplicate pairs grouped by cluster
+        # Dupes with the same matchkey value belong to the same cluster
         pairs = []
         if result.dupes.shape[0] > 0 and "__row_id__" in result.dupes.columns:
-            dupe_ids = result.dupes["__row_id__"].to_list()
-            # Group dupes into clusters by matching them against golden records
-            # Simple approach: consecutive dupe IDs that were merged form a pair
-            # More robust: pair each dupe with every other dupe in the same cluster
-            # Since goldenmatch groups dupes per cluster, we pair all within each group
-            if result.total_clusters > 0:
-                # Each cluster's dupes are grouped together in the dupes df
-                # Use the golden record count to determine cluster boundaries
-                # Simpler: just pair all dupe IDs as they represent matched records
-                for i in range(len(dupe_ids)):
-                    for j in range(i + 1, len(dupe_ids)):
-                        pairs.append((min(dupe_ids[i], dupe_ids[j]),
-                                      max(dupe_ids[i], dupe_ids[j])))
+            # Find the matchkey column (starts with __mk_)
+            mk_cols = [c for c in result.dupes.columns if c.startswith("__mk_")]
+            if mk_cols:
+                mk_col = mk_cols[0]
+                # Group by matchkey to identify clusters
+                clusters = result.dupes.group_by(mk_col).agg(
+                    pl.col("__row_id__").alias("row_ids")
+                )
+                for row in clusters.iter_rows(named=True):
+                    ids = sorted(row["row_ids"])
+                    for i in range(len(ids)):
+                        for j in range(i + 1, len(ids)):
+                            pairs.append((ids[i], ids[j]))
+            else:
+                # Fallback: pair all dupes (less precise)
+                ids = sorted(result.dupes["__row_id__"].to_list())
+                for i in range(len(ids)):
+                    for j in range(i + 1, len(ids)):
+                        pairs.append((ids[i], ids[j]))
 
         return pairs
