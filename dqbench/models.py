@@ -84,3 +84,61 @@ class TransformScorecard:
         for t in self.tiers:
             total += t.accuracy * weights.get(t.tier, 0) * 100
         return round(total, 2)
+
+
+@dataclass
+class ERTierResult:
+    tier: int
+    precision: float
+    recall: float
+    f1: float
+    false_positives: int
+    false_negatives: int
+    time_seconds: float
+    memory_mb: float
+
+
+@dataclass
+class ERRealResult:
+    dataset_name: str
+    precision: float
+    recall: float
+    f1: float
+    time_seconds: float
+
+
+@dataclass
+class ERScorecard:
+    tool_name: str
+    tool_version: str
+    tiers: list[ERTierResult]
+    real_datasets: list[ERRealResult] | None = None
+
+    @property
+    def dqbench_er_score(self) -> float:
+        weights = {1: 0.20, 2: 0.40, 3: 0.40}
+        return round(sum(t.f1 * weights.get(t.tier, 0) * 100 for t in self.tiers), 2)
+
+
+@dataclass
+class PipelineTierResult:
+    tier: int
+    transform_accuracy: float
+    dedup_accuracy: float
+    composite: float
+    output_rows: int
+    expected_rows: int
+    time_seconds: float
+    memory_mb: float
+
+
+@dataclass
+class PipelineScorecard:
+    tool_name: str
+    tool_version: str
+    tiers: list[PipelineTierResult]
+
+    @property
+    def dqbench_pipeline_score(self) -> float:
+        weights = {1: 0.20, 2: 0.40, 3: 0.40}
+        return round(sum(t.composite * weights.get(t.tier, 0) * 100 for t in self.tiers), 2)
