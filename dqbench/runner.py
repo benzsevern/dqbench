@@ -7,8 +7,8 @@ from pathlib import Path
 
 import polars as pl
 
-from dqbench.adapters.base import DQBenchAdapter, TransformAdapter, EntityResolutionAdapter
-from dqbench.models import Scorecard, TransformScorecard, ERScorecard
+from dqbench.adapters.base import DQBenchAdapter, TransformAdapter, EntityResolutionAdapter, PipelineAdapter
+from dqbench.models import Scorecard, TransformScorecard, ERScorecard, PipelineScorecard
 from dqbench.ground_truth import load_ground_truth
 from dqbench.scorer import score_tier
 
@@ -180,4 +180,76 @@ def run_er_benchmark(
         tool_version=adapter.version,
         tiers=results,
         real_datasets=None,
+    )
+
+
+def ensure_pipeline_datasets() -> None:
+    """Generate Pipeline datasets if not cached."""
+    if (CACHE_DIR / "pipeline_tier1" / "data.csv").exists():
+        return
+    from dqbench.generator.pipeline_tier1 import generate_pipeline_tier1
+
+    generators = [(1, generate_pipeline_tier1)]
+
+    try:
+        from dqbench.generator.pipeline_tier2 import generate_pipeline_tier2
+        generators.append((2, generate_pipeline_tier2))
+    except ImportError:
+        pass
+    try:
+        from dqbench.generator.pipeline_tier3 import generate_pipeline_tier3
+        generators.append((3, generate_pipeline_tier3))
+    except ImportError:
+        pass
+
+    for tier_num, gen_fn in generators:
+        tier_dir = CACHE_DIR / f"pipeline_tier{tier_num}"
+        tier_dir.mkdir(parents=True, exist_ok=True)
+        messy_df, clean_df, gt = gen_fn()
+        messy_df.write_csv(tier_dir / "data.csv")
+        clean_df.write_csv(tier_dir / "data_clean_deduped.csv")
+        with open(tier_dir / "pipeline_ground_truth.json", "w") as f:
+            json.dump(gt.model_dump(), f, indent=2)
+
+
+def run_pipeline_benchmark(
+    adapter: PipelineAdapter,
+    tiers: list[int] | None = None,
+) -> PipelineScorecard:
+    """Run Pipeline benchmark and return a scorecard."""
+    from dqbench.pipeline_scorer import score_pipeline_tier
+    from dqbench.pipeline_ground_truth import load_pipeline_ground_truth
+
+    ensure_pipeline_datasets()
+    tier_nums = tiers or [1, 2, 3]
+    results = []
+
+    for tier_num in tier_nums:
+        tier_dir = CACHE_DIR / f"pipeline_tier{tier_num}"
+        csv_path = tier_dir / "data.csv"
+        gt_path = tier_dir / "pipeline_ground_truth.json"
+
+        if not csv_path.exists():
+            continue
+
+        gt = load_pipeline_ground_truth(gt_path)
+
+        tracemalloc.start()
+        t0 = time.perf_counter()
+        result_df = adapter.run_pipeline(csv_path)
+        elapsed = time.perf_counter() - t0
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        tier_result = score_pipeline_tier(
+            result_df, tier_dir, tier=tier_num,
+            time_seconds=elapsed, memory_mb=peak / (1024 * 1024),
+            expected_rows=gt.expected_output_rows,
+        )
+        results.append(tier_result)
+
+    return PipelineScorecard(
+        tool_name=adapter.name,
+        tool_version=adapter.version,
+        tiers=results,
     )
