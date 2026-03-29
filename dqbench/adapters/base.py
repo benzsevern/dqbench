@@ -6,7 +6,8 @@ import polars as pl
 from dqbench.models import DQBenchFinding
 
 
-class DQBenchAdapter(ABC):
+class BenchmarkAdapter(ABC):
+    """Shared base for all adapter types."""
     @property
     @abstractmethod
     def name(self) -> str: ...
@@ -15,20 +16,29 @@ class DQBenchAdapter(ABC):
     @abstractmethod
     def version(self) -> str: ...
 
+
+class DQBenchAdapter(BenchmarkAdapter):
     @abstractmethod
     def validate(self, csv_path: Path) -> list[DQBenchFinding]: ...
 
 
-class TransformAdapter(ABC):
-    @property
-    @abstractmethod
-    def name(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def version(self) -> str: ...
-
+class TransformAdapter(BenchmarkAdapter):
     @abstractmethod
     def transform(self, csv_path: Path) -> pl.DataFrame:
         """Transform the messy CSV and return the cleaned DataFrame."""
+        ...
+
+
+class EntityResolutionAdapter(BenchmarkAdapter):
+    @abstractmethod
+    def deduplicate(self, csv_path: Path) -> list[tuple[int, int]]:
+        """Return list of (row_a, row_b) matched pairs. 0-based row indices."""
+        ...
+
+
+class PipelineAdapter(BenchmarkAdapter):
+    @abstractmethod
+    def run_pipeline(self, csv_path: Path) -> pl.DataFrame:
+        """Run full pipeline (validate -> transform -> deduplicate).
+        Return the final cleaned, deduplicated DataFrame."""
         ...
