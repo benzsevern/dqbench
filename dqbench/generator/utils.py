@@ -75,3 +75,25 @@ FREE_TEXT_NOTES = [
     "Account under review",
     "Longtime customer since 2015",
 ]
+
+# ---- ER data pools ----
+
+COMPANIES = [
+    "Acme Corp", "Globex", "Initech", "Umbrella Inc", "Stark Industries",
+    "Wayne Enterprises", "Cyberdyne", "Soylent Corp", "Oscorp", "LexCorp",
+    "Wonka Industries", "Aperture Science", "Tyrell Corp", "Weyland-Yutani",
+    "Massive Dynamic", "Hooli", "Pied Piper", "Dunder Mifflin", "Sterling Cooper",
+    "Prestige Worldwide",
+]
+
+STREET_NAMES = [
+    "Main St", "Oak Ave", "Elm St", "Park Blvd", "Maple Dr",
+    "Cedar Ln", "Pine Rd", "Washington St", "Lake Ave", "Hill St",
+    "River Rd", "Spring St", "Forest Dr", "Sunset Blvd", "Highland Ave",
+    "Broadway", "Market St", "Church St", "Mill Rd", "Center St",
+]
+
+PHONE_AREA_CODES = [
+    "212", "310", "312", "415", "512", "617", "702", "713", "718", "773",
+    "818", "917", "202", "305", "404", "503", "602", "614", "704", "916",
+]
