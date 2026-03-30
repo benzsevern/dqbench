@@ -56,30 +56,35 @@ def _generate_entity(rng: random.Random) -> dict[str, str]:
 def _plant_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
     messy = row.copy()
     issue_type = rng.choice([
-        "case", "email", "phone", "whitespace", "null",
-        "unicode", "swap", "abbreviation",
+        "case", "whitespace", "phone_format", "email_case",
+        "extra_spaces", "unicode", "abbreviation",
     ])
     if issue_type == "case":
         field = rng.choice(["first_name", "last_name", "city", "company"])
         messy[field] = messy[field].lower() if rng.random() < 0.5 else messy[field].upper()
-    elif issue_type == "email":
-        messy["email"] = rng.choice(["N/A", "invalid", "none", "", "---", "not@valid"])
-    elif issue_type == "phone":
-        messy["phone"] = rng.choice(["N/A", "", "000", "invalid", "555"])
     elif issue_type == "whitespace":
         field = rng.choice(["first_name", "last_name", "company", "address"])
         messy[field] = f"  {messy[field]}  "
-    elif issue_type == "null":
-        field = rng.choice(["email", "phone", "address", "company"])
-        messy[field] = ""
+    elif issue_type == "phone_format":
+        digits = "".join(c for c in messy["phone"] if c.isdigit())
+        if len(digits) == 10:
+            messy["phone"] = rng.choice([
+                digits,
+                f"{digits[:3]}.{digits[3:6]}.{digits[6:]}",
+                f"{digits[:3]}-{digits[3:6]}-{digits[6:]}",
+            ])
+    elif issue_type == "email_case":
+        messy["email"] = messy["email"].upper()
+    elif issue_type == "extra_spaces":
+        field = rng.choice(["address", "city", "company"])
+        words = messy[field].split()
+        messy[field] = "  ".join(words)
     elif issue_type == "unicode":
         field = rng.choice(["first_name", "last_name"])
         val = messy[field]
         if len(val) > 2:
             idx = rng.randint(1, len(val) - 1)
             messy[field] = val[:idx] + "\u200b" + val[idx:]
-    elif issue_type == "swap":
-        messy["first_name"], messy["last_name"] = messy["last_name"], messy["first_name"]
     elif issue_type == "abbreviation":
         addr = messy["address"]
         for abbr, full in ADDRESS_ABBREVIATIONS.items():

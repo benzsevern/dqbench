@@ -43,9 +43,24 @@ class GoldenPipeAdapter(PipelineAdapter):
                 "Run: pip install goldenflow goldenmatch"
             )
 
-        # Stage 1: Transform with GoldenFlow
+        # Stage 1: Transform with GoldenFlow (configured, not zero-config)
+        from goldenflow.config.schema import GoldenFlowConfig, TransformSpec
+
         df = pl.read_csv(csv_path)
-        transform_result = goldenflow.transform_df(df)
+
+        flow_config = GoldenFlowConfig(
+            transforms=[
+                TransformSpec(column="first_name", ops=["strip", "title_case"]),
+                TransformSpec(column="last_name", ops=["strip", "title_case"]),
+                TransformSpec(column="email", ops=["strip", "lowercase"]),
+                TransformSpec(column="phone", ops=["strip", "phone_national"]),
+                TransformSpec(column="address", ops=["strip", "collapse_whitespace"]),
+                TransformSpec(column="city", ops=["strip", "title_case"]),
+                TransformSpec(column="company", ops=["strip", "collapse_whitespace"]),
+            ],
+        )
+
+        transform_result = goldenflow.transform_df(df, config=flow_config)
         cleaned = transform_result.df
 
         # Stage 2: Deduplicate with GoldenMatch (same config as ER adapter)
@@ -100,30 +115,63 @@ class GoldenPipeAdapter(PipelineAdapter):
 
         dedupe_result = goldenmatch.dedupe_df(cleaned, config=config)
 
-        # Build output: unique records + golden records (one per cluster)
-        # Drop GoldenMatch internal columns to match expected schema
-        internal_cols = [c for c in ["__cluster_id__", "__golden_confidence__", "__row_id__", "__source__"] if c != "_row_id"]
+        # Build output: unique records + one representative per cluster.
+        # For each cluster, pick the member with the lowest _row_id
+        # (the original record, not the duplicate).
+        internal_cols = ["__cluster_id__", "__golden_confidence__", "__row_id__", "__source__"]
+        mk_pattern = "__mk_"
+
+        def _drop_internal(df: pl.DataFrame) -> pl.DataFrame:
+            drop = [c for c in df.columns if c in internal_cols or c.startswith(mk_pattern)]
+            return df.drop(drop) if drop else df
 
         parts = []
-        if dedupe_result.unique is not None and dedupe_result.unique.shape[0] > 0:
-            drop = [c for c in internal_cols if c in dedupe_result.unique.columns]
-            # Also drop matchkey columns
-            drop += [c for c in dedupe_result.unique.columns if c.startswith("__mk_")]
-            parts.append(dedupe_result.unique.drop(drop))
 
-        if dedupe_result.golden is not None and dedupe_result.golden.shape[0] > 0:
-            drop = [c for c in internal_cols if c in dedupe_result.golden.columns]
-            drop += [c for c in dedupe_result.golden.columns if c.startswith("__mk_")]
-            parts.append(dedupe_result.golden.drop(drop))
+        # Add unique (non-duplicate) records
+        if dedupe_result.unique is not None and dedupe_result.unique.shape[0] > 0:
+            parts.append(_drop_internal(dedupe_result.unique))
+
+        # For clusters, pick the record with the lowest _row_id from each
+        # cluster's members (original record, not duplicate)
+        if dedupe_result.clusters and dedupe_result.dupes is not None:
+            # Combine all records that are in clusters (dupes + golden)
+            cluster_records = dedupe_result.dupes
+            if dedupe_result.golden is not None:
+                # Golden records also have the cluster data
+                cluster_records = pl.concat([
+                    cluster_records.select(dedupe_result.dupes.columns),
+                    dedupe_result.golden.select(
+                        [c for c in dedupe_result.dupes.columns if c in dedupe_result.golden.columns]
+                    ),
+                ], how="diagonal")
+
+            if "_row_id" in cluster_records.columns:
+                # For each cluster, keep the row with the lowest _row_id
+                # Group by finding which cluster each record belongs to
+                representatives = []
+                for cluster in dedupe_result.clusters.values():
+                    members = cluster["members"]
+                    # Find the member rows in the cluster_records df
+                    member_rows = cluster_records.filter(
+                        pl.col("__row_id__").is_in(members)
+                    )
+                    if member_rows.shape[0] > 0 and "_row_id" in member_rows.columns:
+                        # Pick the one with lowest _row_id
+                        best = member_rows.sort("_row_id").head(1)
+                        representatives.append(best)
+
+                if representatives:
+                    reps_df = pl.concat(representatives)
+                    parts.append(_drop_internal(reps_df))
 
         if parts:
-            # Align columns across parts
+            # Align columns
             all_cols = parts[0].columns
             aligned = []
             for p in parts:
-                for col in all_cols:
-                    if col not in p.columns:
-                        p = p.with_columns(pl.lit(None).alias(col))
+                missing = [c for c in all_cols if c not in p.columns]
+                if missing:
+                    p = p.with_columns([pl.lit(None).alias(c) for c in missing])
                 aligned.append(p.select(all_cols))
             return pl.concat(aligned)
 

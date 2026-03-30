@@ -53,20 +53,27 @@ def _generate_entity(rng: random.Random) -> dict[str, str]:
 
 def _plant_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
     messy = row.copy()
-    issue_type = rng.choice(["case", "email", "phone", "whitespace", "null"])
+    issue_type = rng.choice(["case", "whitespace", "phone_format", "email_case", "extra_spaces"])
     if issue_type == "case":
         field = rng.choice(["first_name", "last_name", "city"])
-        messy[field] = messy[field].lower()
-    elif issue_type == "email":
-        messy["email"] = rng.choice(["N/A", "invalid", "none", "---", ""])
-    elif issue_type == "phone":
-        messy["phone"] = rng.choice(["N/A", "", "000", "invalid"])
+        messy[field] = messy[field].lower() if rng.random() < 0.5 else messy[field].upper()
     elif issue_type == "whitespace":
-        field = rng.choice(["first_name", "last_name", "company"])
+        field = rng.choice(["first_name", "last_name", "company", "email"])
         messy[field] = f"  {messy[field]}  "
-    elif issue_type == "null":
-        field = rng.choice(["email", "phone", "address"])
-        messy[field] = ""
+    elif issue_type == "phone_format":
+        digits = "".join(c for c in messy["phone"] if c.isdigit())
+        if len(digits) == 10:
+            messy["phone"] = rng.choice([
+                digits,
+                f"{digits[:3]}.{digits[3:6]}.{digits[6:]}",
+                f"{digits[:3]}-{digits[3:6]}-{digits[6:]}",
+            ])
+    elif issue_type == "email_case":
+        messy["email"] = messy["email"].upper()
+    elif issue_type == "extra_spaces":
+        field = rng.choice(["address", "city", "company"])
+        words = messy[field].split()
+        messy[field] = "  ".join(words)
     return messy
 
 

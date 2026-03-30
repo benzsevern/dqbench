@@ -51,24 +51,36 @@ def _generate_entity(rng: random.Random) -> dict[str, str]:
 
 
 def _plant_case_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
-    """Lowercase a name field."""
+    """Lowercase or uppercase a name field (fixable by title_case transform)."""
     messy = row.copy()
     field = rng.choice(["first_name", "last_name"])
-    messy[field] = messy[field].lower()
+    messy[field] = messy[field].lower() if rng.random() < 0.5 else messy[field].upper()
     return messy
 
 
-def _plant_email_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
-    """Replace email with an invalid value."""
+def _plant_whitespace_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
+    """Add leading/trailing whitespace (fixable by strip transform)."""
     messy = row.copy()
-    messy["email"] = rng.choice(["N/A", "not provided", "invalid", "---"])
+    field = rng.choice(["first_name", "last_name", "email", "city"])
+    messy[field] = f"  {messy[field]}  "
     return messy
 
 
-def _plant_phone_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
-    """Corrupt phone format."""
+def _plant_phone_format_issue(row: dict[str, str], rng: random.Random) -> dict[str, str]:
+    """Change phone format (fixable by phone normalization).
+
+    E.g. '(555) 123-4567' -> '5551234567' or '555.123.4567'
+    """
     messy = row.copy()
-    messy["phone"] = rng.choice(["555", "N/A", "000-000-0000", ""])
+    # Extract digits from the clean phone
+    digits = "".join(c for c in messy["phone"] if c.isdigit())
+    if len(digits) == 10:
+        fmt = rng.choice([
+            digits,  # plain digits
+            f"{digits[:3]}.{digits[3:6]}.{digits[6:]}",  # dot format
+            f"{digits[:3]}-{digits[3:6]}-{digits[6:]}",  # dash format
+        ])
+        messy["phone"] = fmt
     return messy
 
 
@@ -88,7 +100,7 @@ def generate_pipeline_tier1() -> tuple[pl.DataFrame, pl.DataFrame, PipelineGroun
         clean_entities.append(entity)
 
     # Create messy versions of some entities (quality issues)
-    issue_fns = [_plant_case_issue, _plant_email_issue, _plant_phone_issue]
+    issue_fns = [_plant_case_issue, _plant_whitespace_issue, _plant_phone_format_issue]
     issue_rows = rng.sample(range(N_UNIQUE), N_ISSUES)
     messy_entities = []
     for i, entity in enumerate(clean_entities):

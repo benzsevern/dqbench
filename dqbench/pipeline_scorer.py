@@ -34,7 +34,7 @@ def score_pipeline_tier(
     if output_rows == 0 or "_row_id" not in result_df.columns:
         transform_accuracy = 0.0
     else:
-        # Cast all to string for comparison
+        # Cast all to string for comparison (including _row_id for join)
         result_str = result_df.cast({col: pl.Utf8 for col in result_df.columns})
         clean_str = clean_df.cast({col: pl.Utf8 for col in clean_df.columns})
         messy_str = messy_df.cast({col: pl.Utf8 for col in messy_df.columns})
