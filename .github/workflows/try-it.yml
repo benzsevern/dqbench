@@ -1,0 +1,35 @@
+name: Try DQBench ER
+
+on:
+  workflow_dispatch:
+    inputs:
+      llm:
+        description: "Enable LLM scoring (requires OPENAI_API_KEY secret)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" goldenmatch
+      - name: Generate ER datasets
+        run: dqbench generate --er
+      - name: Run ER benchmark
+        env:
+          OPENAI_API_KEY: ${{ inputs.llm && secrets.OPENAI_API_KEY || '' }}
+        run: |
+          dqbench run goldenmatch --json > er_results.json
+          dqbench run goldenmatch
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dqbench-er-results
+          path: er_results.json

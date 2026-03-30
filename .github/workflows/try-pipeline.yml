@@ -1,0 +1,28 @@
+name: Try DQBench Pipeline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" goldenflow goldenmatch
+      - name: Generate Pipeline datasets
+        run: dqbench generate --pipeline
+      - name: Run Pipeline benchmark
+        run: |
+          dqbench run goldenpipe --json > pipeline_results.json
+          dqbench run goldenpipe
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dqbench-pipeline-results
+          path: pipeline_results.json
