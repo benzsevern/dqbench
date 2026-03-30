@@ -32,6 +32,8 @@ class GoldenMatchAdapter(EntityResolutionAdapter):
                 BlockingConfig,
                 BlockingKeyConfig,
                 StandardizationConfig,
+                LLMScorerConfig,
+                BudgetConfig,
             )
         except ImportError:
             raise RuntimeError(
@@ -129,6 +131,21 @@ class GoldenMatchAdapter(EntityResolutionAdapter):
                 ),
             ],
         )
+
+        # --- LLM scorer for borderline pairs (if API key available) ---
+        import os
+        has_llm = bool(
+            os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("ANTHROPIC_API_KEY")
+        )
+        if has_llm:
+            config.llm_scorer = LLMScorerConfig(
+                enabled=True,
+                candidate_lo=0.60,   # send pairs in 0.60-0.90 range to LLM
+                candidate_hi=0.90,
+                auto_threshold=0.90, # auto-accept above 0.90
+                budget=BudgetConfig(max_calls=500, max_cost_usd=1.0),
+            )
 
         result = goldenmatch.dedupe_df(df, config=config)
 
