@@ -25,32 +25,20 @@ class GoldenMatchAdapter(EntityResolutionAdapter):
 
         df = pl.read_csv(csv_path)
 
-        # Use explicit config for benchmark data columns
-        fuzzy_cols = {}
-        exact_cols = []
-        for col in df.columns:
-            if col.startswith("_"):
-                continue
-            if col in ("email",):
-                exact_cols.append(col)
-            elif col in ("first_name", "last_name", "company", "address", "city"):
-                fuzzy_cols[col] = 0.8
-
+        # Use explicit fuzzy config on key identity columns
+        # Email as exact anchor, names + address as fuzzy
         result = goldenmatch.dedupe_df(
             df,
-            fuzzy=fuzzy_cols or None,
-            exact=exact_cols or None,
+            fuzzy={"first_name": 0.8, "last_name": 0.8},
+            exact=["email"],
         )
 
-        # Extract duplicate pairs grouped by cluster
-        # Dupes with the same matchkey value belong to the same cluster
+        # Extract duplicate pairs grouped by matchkey cluster
         pairs = []
         if result.dupes.shape[0] > 0 and "__row_id__" in result.dupes.columns:
-            # Find the matchkey column (starts with __mk_)
             mk_cols = [c for c in result.dupes.columns if c.startswith("__mk_")]
             if mk_cols:
                 mk_col = mk_cols[0]
-                # Group by matchkey to identify clusters
                 clusters = result.dupes.group_by(mk_col).agg(
                     pl.col("__row_id__").alias("row_ids")
                 )
@@ -59,11 +47,5 @@ class GoldenMatchAdapter(EntityResolutionAdapter):
                     for i in range(len(ids)):
                         for j in range(i + 1, len(ids)):
                             pairs.append((ids[i], ids[j]))
-            else:
-                # Fallback: pair all dupes (less precise)
-                ids = sorted(result.dupes["__row_id__"].to_list())
-                for i in range(len(ids)):
-                    for j in range(i + 1, len(ids)):
-                        pairs.append((ids[i], ids[j]))
 
         return pairs
