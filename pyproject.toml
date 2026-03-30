@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dqbench"
-version = "1.0.0"
-description = "The standard benchmark for data quality and validation tools"
+version = "1.1.0"
+description = "The standard benchmark for data quality tools — detection, transformation, entity resolution, and pipeline orchestration"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Ben Severn", email = "benzsevern@gmail.com" }]
-keywords = ["data-quality", "benchmark", "data-validation", "testing", "data-engineering"]
+keywords = ["data-quality", "benchmark", "data-validation", "testing", "data-engineering", "entity-resolution", "deduplication", "pipeline", "record-linkage"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
