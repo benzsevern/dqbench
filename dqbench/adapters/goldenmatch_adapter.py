@@ -1,4 +1,9 @@
-"""GoldenMatch adapter for DQBench ER benchmarks."""
+"""GoldenMatch adapter for DQBench ER benchmarks.
+
+Uses GoldenMatch's full capabilities: standardization, multi-pass
+blocking with phonetic/substring passes, ensemble scoring for names,
+and proper cluster-based pair extraction.
+"""
 from __future__ import annotations
 from pathlib import Path
 from dqbench.adapters.base import EntityResolutionAdapter
@@ -20,36 +25,114 @@ class GoldenMatchAdapter(EntityResolutionAdapter):
     def deduplicate(self, csv_path: Path) -> list[tuple[int, int]]:
         try:
             import goldenmatch
-            import polars as pl
+            from goldenmatch.config.schemas import (
+                GoldenMatchConfig,
+                MatchkeyConfig,
+                MatchkeyField,
+                BlockingConfig,
+                BlockingKeyConfig,
+                StandardizationConfig,
+            )
         except ImportError:
             raise RuntimeError(
                 "goldenmatch is not installed. Run: pip install goldenmatch"
             )
 
+        import polars as pl
         df = pl.read_csv(csv_path)
 
-        # Match on all identity columns with appropriate thresholds.
-        # Names get lower threshold (typos, nicknames, phonetics).
-        # Email/phone get higher (structured, mostly exact or clearly different).
-        # Block on last_name to keep comparison count manageable.
-        # All fuzzy, no exact — exact matching on email creates
-        # oversized clusters with common emails in synthetic data.
-        # Higher threshold to control false positives.
-        result = goldenmatch.dedupe_df(
-            df,
-            fuzzy={
-                "first_name": 0.70,
-                "last_name": 0.80,
-                "email": 0.85,
-                "phone": 0.75,
-                "address": 0.75,
-                "city": 0.90,
-            },
-            threshold=0.65,
+        # Build a proper config using GoldenMatch's full capabilities.
+        config = GoldenMatchConfig(
+            # --- Standardize first: normalize data before comparison ---
+            standardization=StandardizationConfig(
+                email=["email"],
+                phone=["phone"],
+                first_name=["strip", "name_proper"],
+                last_name=["strip", "name_proper"],
+                address=["address"],
+                zip=["zip5"] if "zip" in df.columns else [],
+                state=["state"] if "state" in df.columns else [],
+            ),
+
+            # --- Multi-pass blocking: catch different dupe types ---
+            # Pass 1: exact email (catches identical-email dupes)
+            # Pass 2: soundex on last_name (catches phonetic variants)
+            # Pass 3: first 3 chars of last_name (catches typos)
+            blocking=BlockingConfig(
+                strategy="multi_pass",
+                keys=[
+                    BlockingKeyConfig(
+                        fields=["email"],
+                        transforms=["lowercase", "strip"],
+                    ),
+                ],
+                passes=[
+                    BlockingKeyConfig(
+                        fields=["email"],
+                        transforms=["lowercase", "strip"],
+                    ),
+                    BlockingKeyConfig(
+                        fields=["last_name"],
+                        transforms=["soundex"],
+                    ),
+                    BlockingKeyConfig(
+                        fields=["last_name"],
+                        transforms=["substring:0:3"],
+                    ),
+                ],
+            ),
+
+            # --- Weighted matchkey: ensemble on names, exact on email ---
+            matchkeys=[
+                MatchkeyConfig(
+                    name="identity",
+                    type="weighted",
+                    threshold=0.75,
+                    fields=[
+                        MatchkeyField(
+                            field="first_name",
+                            scorer="ensemble",
+                            weight=1.0,
+                            transforms=["lowercase", "strip"],
+                        ),
+                        MatchkeyField(
+                            field="last_name",
+                            scorer="ensemble",
+                            weight=1.0,
+                            transforms=["lowercase", "strip"],
+                        ),
+                        MatchkeyField(
+                            field="email",
+                            scorer="jaro_winkler",
+                            weight=0.8,
+                            transforms=["lowercase", "strip"],
+                        ),
+                        MatchkeyField(
+                            field="phone",
+                            scorer="exact",
+                            weight=0.5,
+                            transforms=["digits_only"],
+                        ),
+                        MatchkeyField(
+                            field="address",
+                            scorer="token_sort",
+                            weight=0.6,
+                            transforms=["lowercase", "strip"],
+                        ),
+                        MatchkeyField(
+                            field="city",
+                            scorer="exact",
+                            weight=0.3,
+                            transforms=["lowercase", "strip"],
+                        ),
+                    ],
+                ),
+            ],
         )
 
-        # Extract pairs from clusters (the correct way).
-        # Each cluster has a "members" list of __row_id__ values.
+        result = goldenmatch.dedupe_df(df, config=config)
+
+        # Extract pairs from clusters
         pairs = []
         if result.clusters:
             for cluster in result.clusters.values():
