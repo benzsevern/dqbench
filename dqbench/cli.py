@@ -51,17 +51,20 @@ ALL_ADAPTER_NAMES = [
 
 ER_ADAPTER_NAMES = ["goldenmatch"]
 PIPELINE_ADAPTER_NAMES = ["goldenpipe"]
+OCR_COMPANY_ADAPTER_NAMES: list[str] = []
 
 
 def _detect_category(adapter) -> str:
     """Detect which benchmark category an adapter belongs to."""
-    from dqbench.adapters.base import PipelineAdapter, EntityResolutionAdapter, TransformAdapter
+    from dqbench.adapters.base import PipelineAdapter, EntityResolutionAdapter, TransformAdapter, OCRCompanyAdapter
     if isinstance(adapter, PipelineAdapter):
         return "pipeline"
     if isinstance(adapter, EntityResolutionAdapter):
         return "er"
     if isinstance(adapter, TransformAdapter):
         return "transform"
+    if isinstance(adapter, OCRCompanyAdapter):
+        return "ocr-company"
     return "detect"
 
 
@@ -79,6 +82,7 @@ def run(
     real: bool = typer.Option(False, "--real", help="Include real-world datasets (ER only)"),
     er: bool = typer.Option(False, "--er", help="Run only ER adapters (with 'all')"),
     pipeline: bool = typer.Option(False, "--pipeline", help="Run only Pipeline adapters (with 'all')"),
+    ocr_company: bool = typer.Option(False, "--ocr-company", help="Run only OCR Company adapters (with 'all')"),
 ) -> None:
     """Run benchmark against a validation tool."""
     if adapter_name == "all":
@@ -86,6 +90,8 @@ def run(
             _run_all(tier=tier, category="er")
         elif pipeline:
             _run_all(tier=tier, category="pipeline")
+        elif ocr_company:
+            _run_all(tier=tier, category="ocr-company")
         else:
             _run_all(tier=tier)
         return
@@ -110,6 +116,14 @@ def run(
             report_pipeline_json(scorecard, sys.stdout)
         else:
             report_pipeline_rich(scorecard)
+    elif category == "ocr-company":
+        from dqbench.runner import run_ocr_company_benchmark
+        from dqbench.report import report_ocr_company_rich, report_ocr_company_json
+        scorecard = run_ocr_company_benchmark(adapter, tiers=tiers)
+        if json_output:
+            report_ocr_company_json(scorecard, sys.stdout)
+        else:
+            report_ocr_company_rich(scorecard)
     elif category == "transform":
         from dqbench.runner import run_transform_benchmark
         from dqbench.report import report_transform_rich, report_transform_json
@@ -165,6 +179,10 @@ def _run_all(tier: Optional[int] = None, category: str | None = None) -> None:
         report_pipeline_comparison(scorecards)
         return
 
+    if category == "ocr-company":
+        typer.echo("No built-in OCR Company adapters registered yet. Use --adapter with a custom adapter file.", err=True)
+        return
+
     # Default: run detect-category adapters
     from dqbench.runner import run_benchmark
     from dqbench.report import report_comparison
@@ -188,6 +206,7 @@ def generate(
     force: bool = typer.Option(False, "--force", help="Regenerate even if cached"),
     er: bool = typer.Option(False, "--er", help="Generate ER datasets"),
     pipeline: bool = typer.Option(False, "--pipeline", help="Generate Pipeline datasets"),
+    ocr_company: bool = typer.Option(False, "--ocr-company", help="Generate OCR Company datasets"),
     all_categories: bool = typer.Option(False, "--all", help="Generate datasets for all categories"),
 ) -> None:
     """Generate benchmark datasets."""
@@ -199,7 +218,7 @@ def generate(
             shutil.rmtree(CACHE_DIR)
 
     # Default: generate detect datasets (backwards compatible)
-    if not er and not pipeline and not all_categories:
+    if not er and not pipeline and not ocr_company and not all_categories:
         ensure_datasets()
         typer.echo(f"Datasets generated at {CACHE_DIR}")
         return
@@ -213,6 +232,11 @@ def generate(
         from dqbench.runner import ensure_pipeline_datasets
         ensure_pipeline_datasets()
         typer.echo(f"Pipeline datasets generated at {CACHE_DIR}")
+
+    if ocr_company or all_categories:
+        from dqbench.runner import ensure_ocr_company_datasets
+        ensure_ocr_company_datasets()
+        typer.echo(f"OCR Company datasets generated at {CACHE_DIR}")
 
     if all_categories:
         ensure_datasets()
@@ -251,7 +275,7 @@ def _load_adapter(name: str, path: Path | None = None):
         mod = importlib.import_module(module_path)
         return getattr(mod, class_name)()
 
-    all_names = ALL_ADAPTER_NAMES + ER_ADAPTER_NAMES + PIPELINE_ADAPTER_NAMES
+    all_names = ALL_ADAPTER_NAMES + ER_ADAPTER_NAMES + PIPELINE_ADAPTER_NAMES + OCR_COMPANY_ADAPTER_NAMES
     raise typer.Exit(
         f"Unknown adapter: '{name}'. "
         f"Available: {', '.join(all_names + ['all'])} or use --adapter for a custom file."

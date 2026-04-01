@@ -142,3 +142,41 @@ class PipelineScorecard:
     def dqbench_pipeline_score(self) -> float:
         weights = {1: 0.20, 2: 0.40, 3: 0.40}
         return round(sum(t.composite * weights.get(t.tier, 0) * 100 for t in self.tiers), 2)
+
+
+@dataclass
+class OCRCompanyPrediction:
+    record_id: str
+    confidence: float
+    weakest_token: str = ""
+    suggested_correction: str = ""
+    review_required: bool | None = None
+
+
+@dataclass
+class OCRCompanyTierResult:
+    tier: int
+    confidence_separation: float
+    clean_flag_rate: float
+    corrupted_flag_rate: float
+    weakest_token_hit_rate: float
+    suggestion_coverage_rate: float
+    suggestion_exact_hit_rate: float
+    suggestion_improvement_rate: float
+    avg_similarity_delta_on_suggestions: float
+    composite: float
+    rows: int
+    time_seconds: float
+    memory_mb: float
+
+
+@dataclass
+class OCRCompanyScorecard:
+    tool_name: str
+    tool_version: str
+    tiers: list[OCRCompanyTierResult]
+
+    @property
+    def dqbench_ocr_company_score(self) -> float:
+        weights = {1: 0.20, 2: 0.40, 3: 0.40}
+        return round(sum(t.composite * weights.get(t.tier, 0) * 100 for t in self.tiers), 2)

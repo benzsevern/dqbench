@@ -1,4 +1,4 @@
-from dqbench.models import DQBenchFinding, TierResult, Scorecard
+from dqbench.models import DQBenchFinding, TierResult, Scorecard, OCRCompanyTierResult, OCRCompanyScorecard
 
 
 def test_finding_creation():
@@ -37,3 +37,39 @@ def test_scorecard():
     # DQBench Score now uses issue_f1: 0.774*0.2 + 0.574*0.4 + 0.390*0.4 = 0.1548 + 0.2296 + 0.156 = 0.5404
     expected = round((0.774 * 0.20 + 0.574 * 0.40 + 0.390 * 0.40) * 100, 2)
     assert abs(sc.dqbench_score - expected) < 0.1
+
+
+def test_ocr_company_scorecard():
+    t1 = OCRCompanyTierResult(
+        tier=1,
+        confidence_separation=0.5,
+        clean_flag_rate=0.1,
+        corrupted_flag_rate=0.9,
+        weakest_token_hit_rate=0.8,
+        suggestion_coverage_rate=0.6,
+        suggestion_exact_hit_rate=0.7,
+        suggestion_improvement_rate=0.75,
+        avg_similarity_delta_on_suggestions=0.02,
+        composite=0.78,
+        rows=100,
+        time_seconds=0.2,
+        memory_mb=5.0,
+    )
+    t2 = OCRCompanyTierResult(
+        tier=2,
+        confidence_separation=0.6,
+        clean_flag_rate=0.12,
+        corrupted_flag_rate=0.88,
+        weakest_token_hit_rate=0.82,
+        suggestion_coverage_rate=0.58,
+        suggestion_exact_hit_rate=0.72,
+        suggestion_improvement_rate=0.77,
+        avg_similarity_delta_on_suggestions=0.03,
+        composite=0.80,
+        rows=150,
+        time_seconds=0.4,
+        memory_mb=7.0,
+    )
+    sc = OCRCompanyScorecard(tool_name="OCR", tool_version="1.0", tiers=[t1, t2])
+    expected = round((0.78 * 0.20 + 0.80 * 0.40) * 100, 2)
+    assert abs(sc.dqbench_ocr_company_score - expected) < 0.1

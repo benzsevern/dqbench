@@ -5,7 +5,8 @@ The standard benchmark for data quality tools — detection, transformation, ent
 [![PyPI](https://img.shields.io/pypi/v/dqbench?color=d4a017)](https://pypi.org/project/dqbench/)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Tests](https://img.shields.io/badge/tests-161%20passing-brightgreen)
-![Categories](https://img.shields.io/badge/categories-4-orange)
+![Categories](https://img.shields.io/badge/categories-5-orange)
+![OCR Company Benchmark](https://img.shields.io/badge/OCR%20company-benchmark-included-blue)
 ![ER Benchmark](https://img.shields.io/badge/ER%20benchmark-included-blueviolet)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -23,6 +24,8 @@ Every data quality tool claims to be the best. But there's no standard way to co
 - **20-line integration** — implement one method to benchmark any tool
 
 ## Install
+
+The repo now also includes an `OCR Company` benchmark for post-OCR company-name confidence and correction quality.
 
 ```bash
 pip install dqbench
@@ -55,6 +58,7 @@ dqbench run --adapter my_adapter.py
 | **Transform** | Clean, normalize, and repair data | GoldenFlow, dbt, pandas |
 | **ER** | Entity resolution — deduplicate and link records | GoldenMatch, Splink, Dedupe |
 | **Pipeline** | End-to-end pipeline orchestration and quality gates | GoldenPipe, Airflow, Prefect |
+| **OCR Company** | OCR company-name confidence, review, and correction quality | OCR confidence/correction tools |
 
 ## Head-to-Head Results — Detect (DQBench v1.0)
 
@@ -196,9 +200,11 @@ dqbench run --adapter my_er_adapter.py
 | `dqbench run <adapter> --json` | JSON output |
 | `dqbench run goldenmatch` | Run ER benchmark with GoldenMatch |
 | `dqbench run goldenpipe` | Run Pipeline benchmark with GoldenPipe |
+| `dqbench run placeholder --adapter <path>` | Run a custom OCR Company adapter |
 | `dqbench generate` | Generate/cache detection datasets |
 | `dqbench generate --er` | Generate ER benchmark datasets |
 | `dqbench generate --pipeline` | Generate Pipeline benchmark datasets |
+| `dqbench generate --ocr-company` | Generate OCR Company benchmark datasets |
 | `dqbench generate --all` | Generate datasets for all categories |
 | `dqbench generate --force` | Regenerate datasets |
 
@@ -210,8 +216,34 @@ dqbench run --adapter my_er_adapter.py
 | **Transform** | 3 | — | Data cleaning and normalization |
 | **ER** | 3 | — | Entity resolution and deduplication |
 | **Pipeline** | 3 | — | End-to-end pipeline orchestration |
+| **OCR Company** | 3 | — | OCR company-name confidence and correction |
 
-4 categories, 12 tiers, 161 tests.
+## OCR Company Benchmark
+
+This benchmark measures company-name OCR scoring quality rather than generic data validation.
+
+It ships with deterministic synthetic company OCR tiers and scores:
+
+- confidence separation between clean and corrupted names
+- false review rate on clean names
+- review recall on corrupted names
+- weakest-token hit rate
+- correction exact-hit rate
+- correction improvement rate
+
+Generate OCR Company datasets:
+
+```bash
+dqbench generate --ocr-company
+```
+
+Run with a custom OCR Company adapter:
+
+```bash
+dqbench run placeholder --adapter examples/ocr_company_adapter.py
+```
+
+5 categories, 15 tiers, 164+ tests.
 
 ## Built-in Adapters
 

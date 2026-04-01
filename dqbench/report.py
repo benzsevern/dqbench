@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-from dqbench.models import Scorecard, TransformScorecard, ERScorecard, PipelineScorecard
+from dqbench.models import Scorecard, TransformScorecard, ERScorecard, PipelineScorecard, OCRCompanyScorecard
 
 
 def report_rich(scorecard: Scorecard) -> None:
@@ -474,3 +474,52 @@ def report_pipeline_comparison(scorecards: list[PipelineScorecard]) -> None:
             f"[dim]DQBench Pipeline Score = {best.dqbench_pipeline_score:.2f}[/dim]"
         )
     console.print()
+
+
+def report_ocr_company_rich(scorecard: OCRCompanyScorecard) -> None:
+    """Pretty-print OCR company benchmark results."""
+    console = Console()
+    console.print(
+        f"\n[bold]OCR Company Benchmark: {scorecard.tool_name} v{scorecard.tool_version}[/bold]\n"
+    )
+
+    table = Table(box=box.ROUNDED, show_header=True, header_style="bold magenta")
+    table.add_column("Tier", style="cyan")
+    table.add_column("Separation", style="green")
+    table.add_column("Clean Flag", style="yellow")
+    table.add_column("Corrupt Flag", style="green")
+    table.add_column("Weakest Hit", style="green")
+    table.add_column("Suggest Hit", style="green")
+    table.add_column("Suggest Improve", style="green")
+    table.add_column("Composite", style="bold green")
+    table.add_column("Rows", style="dim")
+
+    for t in scorecard.tiers:
+        table.add_row(
+            f"T{t.tier}",
+            f"{t.confidence_separation:.3f}",
+            f"{t.clean_flag_rate:.1%}",
+            f"{t.corrupted_flag_rate:.1%}",
+            f"{t.weakest_token_hit_rate:.1%}",
+            f"{t.suggestion_exact_hit_rate:.1%}",
+            f"{t.suggestion_improvement_rate:.1%}",
+            f"{t.composite:.1%}",
+            str(t.rows),
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[bold]DQBench OCR Company Score: {scorecard.dqbench_ocr_company_score:.2f} / 100[/bold]\n"
+    )
+
+
+def report_ocr_company_json(scorecard: OCRCompanyScorecard, output: IO[str]) -> None:
+    """Serialize an OCRCompanyScorecard to JSON and write to output stream."""
+    data = {
+        "tool_name": scorecard.tool_name,
+        "tool_version": scorecard.tool_version,
+        "dqbench_ocr_company_score": scorecard.dqbench_ocr_company_score,
+        "tiers": [dataclasses.asdict(t) for t in scorecard.tiers],
+    }
+    json.dump(data, output, indent=2)
+    output.write("\n")

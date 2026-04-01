@@ -35,3 +35,8 @@ def test_generate_help():
     result = runner.invoke(app, ["generate", "--help"])
     assert result.exit_code == 0
     assert "force" in result.stdout.lower()
+
+
+def test_generate_ocr_company():
+    result = runner.invoke(app, ["generate", "--ocr-company"])
+    assert result.exit_code == 0

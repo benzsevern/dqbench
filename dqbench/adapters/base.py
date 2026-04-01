@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 import polars as pl
-from dqbench.models import DQBenchFinding
+from dqbench.models import DQBenchFinding, OCRCompanyPrediction
 
 
 class BenchmarkAdapter(ABC):
@@ -41,4 +41,11 @@ class PipelineAdapter(BenchmarkAdapter):
     def run_pipeline(self, csv_path: Path) -> pl.DataFrame:
         """Run full pipeline (validate -> transform -> deduplicate).
         Return the final cleaned, deduplicated DataFrame."""
+        ...
+
+
+class OCRCompanyAdapter(BenchmarkAdapter):
+    @abstractmethod
+    def score_companies(self, csv_path: Path) -> list[OCRCompanyPrediction]:
+        """Score OCR'd company names in the benchmark CSV."""
         ...

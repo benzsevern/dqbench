@@ -84,3 +84,29 @@ def test_report_rich_runs_without_error():
     sc = Scorecard(tool_name="TestTool", tool_version="1.0", tiers=[t1])
     # Should run without raising
     report_rich(sc)
+
+
+def test_report_ocr_company_json_structure():
+    from dqbench.models import OCRCompanyTierResult, OCRCompanyScorecard
+    from dqbench.report import report_ocr_company_json
+    t1 = OCRCompanyTierResult(
+        tier=1,
+        confidence_separation=0.5,
+        clean_flag_rate=0.1,
+        corrupted_flag_rate=0.9,
+        weakest_token_hit_rate=0.8,
+        suggestion_coverage_rate=0.6,
+        suggestion_exact_hit_rate=0.7,
+        suggestion_improvement_rate=0.75,
+        avg_similarity_delta_on_suggestions=0.02,
+        composite=0.78,
+        rows=100,
+        time_seconds=0.2,
+        memory_mb=5.0,
+    )
+    sc = OCRCompanyScorecard(tool_name="OCR", tool_version="1.0", tiers=[t1])
+    buf = io.StringIO()
+    report_ocr_company_json(sc, buf)
+    data = json.loads(buf.getvalue())
+    assert data["tool_name"] == "OCR"
+    assert data["dqbench_ocr_company_score"] == 15.6

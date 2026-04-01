@@ -7,8 +7,8 @@ from pathlib import Path
 
 import polars as pl
 
-from dqbench.adapters.base import DQBenchAdapter, TransformAdapter, EntityResolutionAdapter, PipelineAdapter
-from dqbench.models import Scorecard, TransformScorecard, ERScorecard, PipelineScorecard
+from dqbench.adapters.base import DQBenchAdapter, TransformAdapter, EntityResolutionAdapter, PipelineAdapter, OCRCompanyAdapter
+from dqbench.models import Scorecard, TransformScorecard, ERScorecard, PipelineScorecard, OCRCompanyScorecard
 from dqbench.ground_truth import load_ground_truth
 from dqbench.scorer import score_tier
 
@@ -212,6 +212,18 @@ def ensure_pipeline_datasets() -> None:
             json.dump(gt.model_dump(), f, indent=2)
 
 
+def ensure_ocr_company_datasets() -> None:
+    """Generate OCR company datasets if not cached."""
+    if (CACHE_DIR / "ocr_company_tier1" / "data.csv").exists():
+        return
+    from dqbench.generator.ocr_company import generate_ocr_company_tier
+
+    for tier_num in [1, 2, 3]:
+        tier_dir = CACHE_DIR / f"ocr_company_tier{tier_num}"
+        tier_dir.mkdir(parents=True, exist_ok=True)
+        generate_ocr_company_tier(tier_num).write_csv(tier_dir / "data.csv")
+
+
 def run_pipeline_benchmark(
     adapter: PipelineAdapter,
     tiers: list[int] | None = None,
@@ -249,6 +261,48 @@ def run_pipeline_benchmark(
         results.append(tier_result)
 
     return PipelineScorecard(
+        tool_name=adapter.name,
+        tool_version=adapter.version,
+        tiers=results,
+    )
+
+
+def run_ocr_company_benchmark(
+    adapter: OCRCompanyAdapter,
+    tiers: list[int] | None = None,
+) -> OCRCompanyScorecard:
+    """Run OCR company benchmark and return a scorecard."""
+    from dqbench.ocr_company_scorer import score_ocr_company_tier
+
+    ensure_ocr_company_datasets()
+    tier_nums = tiers or [1, 2, 3]
+    results = []
+
+    for tier_num in tier_nums:
+        tier_dir = CACHE_DIR / f"ocr_company_tier{tier_num}"
+        csv_path = tier_dir / "data.csv"
+        if not csv_path.exists():
+            continue
+
+        tracemalloc.start()
+        t0 = time.perf_counter()
+        predictions = adapter.score_companies(csv_path)
+        elapsed = time.perf_counter() - t0
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        dataset = pl.read_csv(csv_path)
+        results.append(
+            score_ocr_company_tier(
+                predictions,
+                dataset,
+                tier=tier_num,
+                time_seconds=elapsed,
+                memory_mb=peak / (1024 * 1024),
+            )
+        )
+
+    return OCRCompanyScorecard(
         tool_name=adapter.name,
         tool_version=adapter.version,
         tiers=results,
