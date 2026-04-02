@@ -84,6 +84,8 @@ dqbench run --adapter my_adapter.py
 > GoldenMatch with LLM achieves a 95.30 DQBench ER Score across all three tiers.
 >
 > **Cost estimate:** ~$0.15-0.30 per full run (3 tiers) with LLM scoring. Without LLM: free, ~23s total. With LLM: ~$0.25, ~670s total. LLM scoring is optional and activates automatically when `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` is set.
+>
+> **External validation:** GoldenMatch also scores **75.0% F1 on [BPID](https://aclanthology.org/2024.emnlp-industry.40/)** (Amazon's adversarial PII deduplication benchmark, EMNLP 2024), matching Ditto (75.2%) with zero training data. See the [benchmark writeup](https://bensevern.dev/blog/2026-04-02-goldenmatch-bpid-benchmark).
 
 Run the comparisons yourself:
 ```bash
