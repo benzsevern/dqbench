@@ -44,7 +44,6 @@ def _result_to_findings(result, csv_path: Path) -> list[DQBenchFinding]:
 
                 # Map expectation type to meaningful check/severity
                 severity = "error"
-                check = exp_type
                 message = f"GX expectation failed: {exp_type}"
 
                 try:

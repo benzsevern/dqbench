@@ -76,7 +76,7 @@ def generate_clean_tier1() -> pl.DataFrame:
 
     income_outlier_rows = rng.sample(range(NROWS), 10)
     status_bad_rows = rng.sample(range(NROWS), 15)
-    date_fmt_rows = rng.sample(range(NROWS), 12)
+    _date_fmt_rows = rng.sample(range(NROWS), 12)  # noqa: F841
     login_before_signup_rows = rng.sample(range(NROWS), 18)
     country_bad_rows = rng.sample(range(NROWS), 10)
     null_shipping_rows = set(rng.sample(range(NROWS), 50))
@@ -295,7 +295,6 @@ def generate_clean_tier2() -> pl.DataFrame:
     - rating: enum_violation
     - address_line1/city/state: null_values
     """
-    import math as _math
     rng = random.Random(42)
     NROWS = _T2_NROWS
 
@@ -694,7 +693,6 @@ def generate_clean_tier3() -> pl.DataFrame:
         CONFLICTING_DX_PAIRS,
         LATIN1_STRINGS,
         ZERO_WIDTH_CHARS,
-        SMART_QUOTE_PHRASES,
         STRAIGHT_QUOTE_PHRASES,
         PRIOR_AUTH_FLAGS,
         NUMERIC_PATIENT_NAMES,

@@ -1,7 +1,6 @@
 """Tests for ER tier generators."""
 from __future__ import annotations
 import polars as pl
-import pytest
 
 from dqbench.generator.er_tier1 import generate_er_tier1
 from dqbench.generator.er_tier2 import generate_er_tier2

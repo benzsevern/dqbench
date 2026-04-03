@@ -1,10 +1,7 @@
 """Tests for ER runner integration."""
 from __future__ import annotations
-import shutil
 from pathlib import Path
 
-import polars as pl
-import pytest
 
 from dqbench.adapters.base import EntityResolutionAdapter
 from dqbench.models import ERScorecard

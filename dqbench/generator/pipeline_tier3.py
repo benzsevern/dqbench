@@ -14,7 +14,6 @@ from dqbench.generator.utils import (
     COMPANIES,
     STREET_NAMES,
     PHONE_AREA_CODES,
-    NICKNAME_MAP,
     PHONETIC_VARIANTS,
     ADDRESS_ABBREVIATIONS,
 )

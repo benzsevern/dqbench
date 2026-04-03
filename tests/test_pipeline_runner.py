@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import polars as pl
-import pytest
 
 from dqbench.adapters.base import PipelineAdapter
 from dqbench.models import PipelineScorecard

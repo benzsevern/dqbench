@@ -1,6 +1,5 @@
 import polars as pl
 from dqbench.transform_scorer import score_transform_tier
-from dqbench.models import TransformTierResult
 
 
 def test_perfect_transform():

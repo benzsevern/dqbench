@@ -13,7 +13,6 @@ The Soda zero/auto/best modes mirror the SodaCL philosophy:
 from __future__ import annotations
 
 import logging
-import warnings
 from pathlib import Path
 
 from dqbench.adapters.base import DQBenchAdapter
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 def _soda_version() -> str:
     try:
-        import soda_core
         from soda_core.common.version import SODA_CORE_VERSION
         return SODA_CORE_VERSION
     except Exception:
@@ -81,7 +79,6 @@ class SodaAutoProfileAdapter(DQBenchAdapter):
         findings: list[DQBenchFinding] = []
         try:
             import pandas as pd
-            import numpy as np
 
             df = pd.read_csv(csv_path)
 
@@ -154,7 +151,6 @@ class SodaAutoProfileAdapter(DQBenchAdapter):
                     elif pd.api.types.is_object_dtype(series):
                         n_unique = series.nunique()
                         n_total = len(series.dropna())
-                        uniqueness_ratio = n_unique / n_total if n_total > 0 else 0
 
                         # Very low cardinality (< 10 distinct values) → check for invalid categories
                         # We don't know ground truth so just profile
@@ -200,7 +196,6 @@ class SodaBestEffortAdapter(DQBenchAdapter):
         findings: list[DQBenchFinding] = []
         try:
             import pandas as pd
-            import re
 
             df = pd.read_csv(csv_path)
             cols = set(df.columns)

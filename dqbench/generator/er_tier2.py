@@ -6,7 +6,7 @@ import random
 import polars as pl
 
 from dqbench.er_ground_truth import ERGroundTruth
-from dqbench.generator.er_tier1 import _generate_entity, _generate_phone, _generate_address
+from dqbench.generator.er_tier1 import _generate_entity
 from dqbench.generator.utils import NICKNAME_MAP
 
 NROWS = 5000

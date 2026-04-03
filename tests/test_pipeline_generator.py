@@ -1,9 +1,10 @@
 """Tests for Pipeline tier generators."""
 from __future__ import annotations
 import polars as pl
-import pytest
 
 from dqbench.generator.pipeline_tier1 import generate_pipeline_tier1
+from dqbench.generator.pipeline_tier2 import generate_pipeline_tier2
+from dqbench.generator.pipeline_tier3 import generate_pipeline_tier3
 from dqbench.pipeline_ground_truth import PipelineGroundTruth
 
 
@@ -45,10 +46,6 @@ class TestPipelineTier1:
         _, _, gt = generate_pipeline_tier1()
         assert gt.tier == 1
         assert gt.version == "1.0.0"
-
-
-from dqbench.generator.pipeline_tier2 import generate_pipeline_tier2
-from dqbench.generator.pipeline_tier3 import generate_pipeline_tier3
 
 
 class TestPipelineTier2:

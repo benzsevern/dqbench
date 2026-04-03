@@ -23,7 +23,6 @@ def _failure_cases_to_findings(failure_cases, check_name: str = "schema_check") 
     """Convert a pandera failure_cases DataFrame into DQBenchFindings."""
     findings: list[DQBenchFinding] = []
     try:
-        import pandas as pd
         if failure_cases is None or len(failure_cases) == 0:
             return findings
 
